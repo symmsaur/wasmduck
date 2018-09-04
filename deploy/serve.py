@@ -17,4 +17,4 @@ print("Serving the stuff!")
 try:
     httpd.serve_forever()
 finally:
-    httpd.stop()
+    httpd.shutdown()
