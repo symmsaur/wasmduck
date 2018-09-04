@@ -3,9 +3,6 @@ name = "wasmduck"
 version = "0.1.0"
 authors = ["Magnus Sandén <thefreid@gmail.com>"]
 
-[build]
-target = "wasm32-unknown-unknown"
-
 [lib]
 crate-type = ["cdylib"]
 
