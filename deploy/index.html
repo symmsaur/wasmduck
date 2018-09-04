@@ -11,16 +11,39 @@
     <script>
       var importObject = {
       };
-
-      fetch('wasmduck.wasm').then(response =>
-        response.arrayBuffer()
-      ).then(bytes =>
-        WebAssembly.instantiate(bytes, importObject)
-      ).then(result => {
-        console.log(result.instance.exports.greet());
-      }
-      ).catch(err => console.dir(err))
+      let canvasContext;
+      var image = new Image();
+      image.addEventListener("load", () => {
+        console.log("Start of load callback");
+        const canvas = document.createElement("canvas");
+        canvas.id = "win";
+        canvas.width = image.width;
+        canvas.height = image.height;
+        canvasContext = canvas.getContext("2d");
+        canvasContext.drawImage(image, 0, 0);
+        canvasContainer = document.getElementById("canvas-container");
+        canvasContainer.appendChild(canvas);
+        console.log("Added image to canvas");
+        const imageData = canvasContext.getImageData(0, 0, image.width, image.height).data;
+        var memory = new WebAssembly.Memory({initial: 20, maximum: 50});
+        const wasmBuffer = Uint8Array(memory.buffer, 4, imageData.length + 4);
+        wasmBuffer.set(imageData.buffer);
+        fetch('wasmduck.wasm').then(response =>
+          response.arrayBuffer()
+        ).then(bytes =>
+          WebAssembly.instantiate(bytes, importObject)
+        ).then(result => {
+          var list = [1,2,3];
+          console.log(imageData.reduce( (a, b) => a + b));
+          console.log(result.instance.exports.greet(wasmBuffer, imageData.length));
+          //console.log(result.instance.exports.list_int(list, list.length));
+        }
+        ).catch(err => console.dir(err))
+      })
+      image.src = "index.png";
+      console.log("Hopp");
     </script>
+    <span id="canvas-container"/>
   </body>
 
 </html>
