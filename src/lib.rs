@@ -1,9 +1,10 @@
 extern crate cfg_if;
 
+use std::mem;
 use std::os::raw::c_char;
 use std::os::raw::c_void;
-use std::mem;
 mod utils;
+mod sph;
 
 #[no_mangle]
 pub extern "C" fn alloc(size: usize) -> *mut c_void {
@@ -14,12 +15,22 @@ pub extern "C" fn alloc(size: usize) -> *mut c_void {
 }
 
 #[no_mangle]
-pub extern "C" fn sum(buffer: *mut c_char, size: i32) -> i32 {
-   //assert!(buffer != std::ptr::null());
-   let safe_buffer = unsafe {std::slice::from_raw_parts(buffer as *mut u8, size as usize)};
-   let mut sum = 0;
-   for color in safe_buffer {
-       sum += *color as i32;
-   }
-   return sum;
+pub extern "C" fn update(buffer: *mut c_char, width: usize, height: usize) {
+    let byte_size = width * height * 4;
+    let safe_buffer = unsafe { std::slice::from_raw_parts_mut(buffer as *mut u8, byte_size) };
+    for y in 0..height {
+        for x in 0..width {
+            let density = sph::density(x as f64 / width as f64, y as f64 / height as f64);
+            let mut norm_density = (255. * (density - 0.6) / (0.7 - 0.6)).round() as i32;
+            if norm_density > 255 {
+                norm_density = 255;
+            }
+            if norm_density < 0 {
+                norm_density = 0;
+            }
+            let index = (y * width + x) * 4;
+            safe_buffer[index + 0] = 255;
+            safe_buffer[index + 3] = norm_density as u8;
+        }
+    }
 }
