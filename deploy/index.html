@@ -20,28 +20,36 @@
         canvas.width = image.width;
         canvas.height = image.height;
         canvasContext = canvas.getContext("2d");
-        canvasContext.drawImage(image, 0, 0);
+        //canvasContext.drawImage(image, 0, 0);
         canvasContainer = document.getElementById("canvas-container");
         canvasContainer.appendChild(canvas);
         console.log("Added image to canvas");
-        const imageData = canvasContext.getImageData(0, 0, image.width, image.height).data;
+        //const imageData = canvasContext.getImageData(0, 0, image.width, image.height).data;
 
         fetch('wasmduck.wasm').then(response =>
           response.arrayBuffer()
         ).then(bytes =>
           WebAssembly.instantiate(bytes, importObject)
         ).then(result => {
-          const size = 4;
+          const size = image.width * image.height * 4;
           var pointer = result.instance.exports.alloc(size);
           var rustMem = new Uint8ClampedArray(result.instance.exports.memory.buffer, pointer, size);
-          rustMem[1] = 2;
-          rustMem[2] = 3;
-          console.log(result.instance.exports.sum(pointer, size));
+          var rustImg = new ImageData(rustMem, image.width, image.height);
+
+          window.requestAnimationFrame(step);
+
+          function step() {
+            result.instance.exports.update(pointer, image.width, image.height);
+            window.requestAnimationFrame(draw);
+          }
+          function draw() {
+            canvasContext.putImageData(rustImg, 0, 0);
+            window.requestAnimationFrame(step);
+          }
         }
         ).catch(err => console.dir(err))
       })
       image.src = "index.png";
-      console.log("Hopp");
     </script>
     <span id="canvas-container"/>
   </body>

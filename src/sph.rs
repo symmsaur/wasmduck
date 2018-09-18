@@ -1,7 +1,7 @@
-extern crate num_traits;
+// extern crate num_traits;
 
 use std::f64::consts::PI;
-use num_traits::pow;
+// use num_traits::pow;
 
 const REST_DENS: f64 = 1000.0;
 const GAS_CONST: f64 = 2000.0;
@@ -20,6 +20,14 @@ struct Particle {
     fy: f64,
     density: f64,
     pressure: f64
+}
+
+fn pow(x: f64, exp: u32) -> f64 {
+    let mut result = 1.0;
+    for i in 0..exp {
+        result *= x;
+    }
+    return result;
 }
 
 fn kernel_2d(r: f64, h: f64) -> f64 {
@@ -66,7 +74,7 @@ pub fn density(x: f64, y: f64) -> f64 {
     particles.push(create_particle(3.,3.));
     particles.push(create_particle(4.,4.));
     particles.push(create_particle(5.,5.));
-    
+
     for particle in &mut particles {
         particle.density = 0.0;
     }
@@ -84,7 +92,7 @@ pub fn density(x: f64, y: f64) -> f64 {
     let mut density = 0.0;
     for particle in &cloned_particles {
         let r = f64::sqrt(pow(x - particle.x, 2) + pow(y - particle.y, 2));
-        particle1.density += M*kernel_2d(r, H);
+        density += M*kernel_2d(r, H);
     }
     return density;
 }
