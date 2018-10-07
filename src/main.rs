@@ -18,9 +18,11 @@ fn main() {
     let height = canvas.height();
     let ctx: CanvasRenderingContext2d = canvas
         .get_context().unwrap();
+    let mut state = sph::create_initial_state();
+    sph::update_density(&mut state);
     for y in 0..height {
         for x in 0..width {
-            let density = sph::density(x as f64 / width as f64, y as f64 / height as f64);
+            let density = sph::density(&state, x as f64 / width as f64, y as f64 / height as f64);
             let mut norm_density = (255. * (density - 0.6) / (0.7 - 0.6)).round() as i32;
             if norm_density > 255 {
                 norm_density = 255;

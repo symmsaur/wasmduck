@@ -11,7 +11,7 @@ const M: f64 = 65.0;
 // const DT: f64 = 0.0008;
 
 #[derive(Clone)]
-struct Particle {
+pub struct Particle {
     x: f64,
     y: f64,
     vx: f64,
@@ -24,7 +24,7 @@ struct Particle {
 
 fn pow(x: f64, exp: u32) -> f64 {
     let mut result = 1.0;
-    for i in 0..exp {
+    for _i in 0..exp {
         result *= x;
     }
     return result;
@@ -42,18 +42,6 @@ fn kernel_2d(r: f64, h: f64) -> f64 {
     return pow(1.0 - 0.5 * q, 4) * (2.0 * q + 1.0) * alpha_d;
 }
 
-fn kernel_3d(r: f64, h: f64) -> f64 {
-    let inv_h = 1.0 / h;
-    let q = r*inv_h;
-
-    if q > 2.0 {
-        return 0.0;
-    }
-
-    let alpha_d = 21.0 / 16.0 / PI * pow(inv_h, 3);
-    return pow(1.0 - 0.5 * q, 4) * (2.0 * q + 1.0) * alpha_d;
-}
-
 fn create_particle(x_: f64, y_: f64) -> Particle {
     Particle {
         x: x_,
@@ -67,30 +55,44 @@ fn create_particle(x_: f64, y_: f64) -> Particle {
     }
 }
 
-pub fn density(x: f64, y: f64) -> f64 {
-    let mut particles: Vec<Particle> = Vec::new();
-    particles.push(create_particle(1.,1.));
-    particles.push(create_particle(2.,2.));
-    particles.push(create_particle(3.,3.));
-    particles.push(create_particle(4.,4.));
-    particles.push(create_particle(5.,5.));
+pub fn create_initial_state() -> Vec<Particle> {
+    let particles = vec![
+        create_particle(1.,1.),
+        create_particle(2.,2.),
+        create_particle(3.,3.),
+        create_particle(4.,4.),
+        create_particle(5.,5.),
+    ];
+    return particles;
+}
 
-    for particle in &mut particles {
+pub fn update_density(particles: &mut Vec<Particle>) {
+    for particle in particles.iter_mut() {
         particle.density = 0.0;
     }
 
-    let mut cloned_particles = particles.clone();
-
-    for particle1 in &mut cloned_particles {
-        for particle2 in &particles {
-            let r = f64::sqrt(pow(particle1.x - particle2.x, 2) + pow(particle1.y - particle2.y, 2));
-            particle1.density += M*kernel_2d(r, H);
+    // Wat?!
+    for i in 0..particles.len() {
+        let mut density = 0.;
+        {
+            let particle1 = &particles[i];
+            for j in 0..particles.len() {
+                let particle2 = &particles[j];
+                let r = f64::sqrt(pow(particle1.x - particle2.x, 2) + pow(particle1.y - particle2.y, 2));
+                density += M*kernel_2d(r, H);
+            }
         }
-        particle1.pressure = GAS_CONST*(particle1.density-REST_DENS);
+        {
+            let particle = &mut particles[i];
+            particle.pressure = GAS_CONST*(particle.density-REST_DENS);
+            particle.density = density;
+        }
     }
+}
 
+pub fn density(particles: &Vec<Particle>, x: f64, y: f64) -> f64 {
     let mut density = 0.0;
-    for particle in &cloned_particles {
+    for particle in particles.iter() {
         let r = f64::sqrt(pow(x - particle.x, 2) + pow(y - particle.y, 2));
         density += M*kernel_2d(r, H);
     }
@@ -109,15 +111,5 @@ mod tests {
         assert!((kernel_2d(0.0, 1.0)-0.5570423008216338).abs() < tolerance);
         assert!((kernel_2d(1.0, 1.0)-0.1044454314040563).abs() < tolerance);
         assert!((kernel_2d(2.0, 1.0)-0.0000000000000000).abs() < tolerance);
-    }
-
-    #[test]
-    fn test_kernel_3d() {
-        let tolerance = 1e-15;
-        assert!((kernel_3d(0.5, 0.5)-0.6266725884243379).abs() < tolerance);
-        assert!((kernel_3d(1.0, 0.5)-0.0000000000000000).abs() < tolerance);
-        assert!((kernel_3d(0.0, 1.0)-0.4177817256162253).abs() < tolerance);
-        assert!((kernel_3d(1.0, 1.0)-0.0783340735530422).abs() < tolerance);
-        assert!((kernel_3d(2.0, 1.0)-0.0000000000000000).abs() < tolerance);
     }
 }
