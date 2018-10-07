@@ -1,7 +1,6 @@
 # Minimal deploy
-Build with `cargo build`
-Copy `target/wasm32-unknown-unknown/debug/wasmduck.wasm` to `deploy/`
-Serve with `python serve.py 8080` or whichever port you want.
+Build with `cargo web build`
+Serve with `cargo web start`
 
 # Tests
-Execute tests using `cargo test --target x86_64-unknown-linux-gnu`.
+Execute tests using `cargo web test`, requires chrome or chromium in `PATH`.
