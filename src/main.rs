@@ -4,6 +4,8 @@ use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, CanvasRenderingContext2d};
 use stdweb::unstable::TryInto;
 
+mod kernels;
+mod math;
 mod sph;
 
 
