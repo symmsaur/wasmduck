@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate stdweb;
+extern crate rayon;
 
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, CanvasRenderingContext2d};
@@ -8,8 +9,9 @@ use stdweb::unstable::TryInto;
 mod kernels;
 mod math;
 mod sph;
+mod grid;
 
-const DT: f64 = 0.001;
+const DT: f64 = 0.0005;
 
 struct Canvas {
     pub canvas: CanvasElement,
@@ -39,24 +41,16 @@ fn main() {
 }
 
 fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, _dt: f64) {
-    let max_density = sph::update_density(&mut state);
-    sph::update_state(&mut state, DT);
-    for y in 0..canvas.height {
-        for x in 0..canvas.width {
-            let density = sph::density(
-                &state,
-                x as f64 * 5.0 / canvas.width as f64,
-                y as f64 * 5.0 / canvas.height as f64);
-            let mut norm_density = (255. * density / max_density).round() as i32;
-            if norm_density > 255 {
-                norm_density = 255;
-            }
-            if norm_density < 0 {
-                norm_density = 0;
-            }
-            canvas.ctx.set_fill_style_color(&format!("rgb({}, 0, 0)", norm_density));
-            canvas.ctx.fill_rect(x as f64, y as f64, 1.0, 1.0);
-        }
+    let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
+    canvas.ctx.set_fill_style_color("rgb(0, 0, 0)");
+    canvas.ctx.fill_rect(0.0, 0.0, canvas.width as f64, canvas.height as f64);
+    for particle in &state {
+        canvas.ctx.set_fill_style_color(&format!("rgb(0, 0, {})", 255));
+        canvas.ctx.fill_rect(particle.x * canvas.width as f64 / 5.0, particle.y * canvas.height as f64 / 5.0, 5.0, 5.0);
+    }
+    let n = debug.n_neighbours as u32;
+    js! {
+        console.log(@{n});
     }
     web::window().request_animation_frame(move |dt| {
         main_loop(canvas, state, dt);
