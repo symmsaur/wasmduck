@@ -4,8 +4,6 @@ extern crate stdweb;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, CanvasRenderingContext2d};
 use stdweb::unstable::TryInto;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 mod kernels;
 mod math;
@@ -30,22 +28,22 @@ fn main() {
     let height = canvas.height();
     let ctx: CanvasRenderingContext2d = canvas
         .get_context().unwrap();
-    let canvasHolder = Canvas {
+    let canvas_holder = Canvas {
         canvas,
         ctx,
         width,
         height
     };
-    let mut state = sph::create_initial_state();
-    main_loop(Rc::new(canvasHolder), Rc::new(RefCell::new(state)));
+    let state = sph::create_initial_state();
+    main_loop(canvas_holder, state);
 }
 
-fn main_loop(canvas: Rc<Canvas>, state: Rc<RefCell<Vec<sph::Particle>>>) {
-    let max_density = sph::update_density(&mut state.borrow_mut());
-    sph::update_state(&mut state.borrow_mut(), DT);
+fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>) {
+    let max_density = sph::update_density(&mut state);
+    sph::update_state(&mut state, DT);
     for y in 0..canvas.height {
         for x in 0..canvas.width {
-            let density = sph::density(&state.borrow(), x as f64 * 5.0 / canvas.width as f64, y as f64 * 5.0 / canvas.height as f64);
+            let density = sph::density(&state, x as f64 * 5.0 / canvas.width as f64, y as f64 * 5.0 / canvas.height as f64);
             let mut norm_density = (255. * density / (max_density)).round() as i32;
             if norm_density > 255 {
                 norm_density = 255;
@@ -58,7 +56,7 @@ fn main_loop(canvas: Rc<Canvas>, state: Rc<RefCell<Vec<sph::Particle>>>) {
             canvas.ctx.fill_rect(x as f64, y as f64, 1.0, 1.0);
         }
     }
-    web::set_timeout(move || {
-        main_loop(canvas.clone(), state.clone());
-    }, 30);
+    web::window().request_animation_frame(move |_time| {
+        main_loop(canvas, state);
+    });
 }
