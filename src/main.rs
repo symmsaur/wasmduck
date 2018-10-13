@@ -9,7 +9,6 @@ mod kernels;
 mod math;
 mod sph;
 
-const DT: f64 = 0.01;
 struct Canvas {
     pub canvas: CanvasElement,
     pub ctx: CanvasRenderingContext2d,
@@ -18,10 +17,9 @@ struct Canvas {
 }
 
 fn main() {
-    let tmp = web::document()
+    let canvas: CanvasElement = web::document()
         .get_element_by_id("win")
-        .unwrap();
-    let canvas: CanvasElement = tmp
+        .unwrap()
         .try_into()
         .unwrap();
     let width = canvas.width();
@@ -35,28 +33,30 @@ fn main() {
         height
     };
     let state = sph::create_initial_state();
-    main_loop(canvas_holder, state);
+    main_loop(canvas_holder, state, 0.001);
 }
 
-fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>) {
+fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, dt: f64) {
     let max_density = sph::update_density(&mut state);
-    sph::update_state(&mut state, DT);
+    sph::update_state(&mut state, 1000.0*dt);
     for y in 0..canvas.height {
         for x in 0..canvas.width {
-            let density = sph::density(&state, x as f64 * 5.0 / canvas.width as f64, y as f64 * 5.0 / canvas.height as f64);
-            let mut norm_density = (255. * density / (max_density)).round() as i32;
+            let density = sph::density(
+                &state,
+                x as f64 * 5.0 / canvas.width as f64,
+                y as f64 * 5.0 / canvas.height as f64);
+            let mut norm_density = (255. * density / max_density).round() as i32;
             if norm_density > 255 {
                 norm_density = 255;
             }
             if norm_density < 0 {
                 norm_density = 0;
             }
-            // let index = (y * width + x) * 4;
             canvas.ctx.set_fill_style_color(&format!("rgb({}, 0, 0)", norm_density));
             canvas.ctx.fill_rect(x as f64, y as f64, 1.0, 1.0);
         }
     }
-    web::window().request_animation_frame(move |_time| {
-        main_loop(canvas, state);
+    web::window().request_animation_frame(move |new_dt| {
+        main_loop(canvas, state, new_dt);
     });
 }
