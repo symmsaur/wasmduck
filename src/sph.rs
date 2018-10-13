@@ -24,30 +24,30 @@ pub struct Particle {
     pressure: f64
 }
 
-
-
-fn create_particle(x_: f64, y_: f64) -> Particle {
-    Particle {
-        x: x_,
-        y: y_,
-        vx: 0.,
-        vy: 0.,
-        fx: 0.,
-        fy: 0.,
-        ofx: 0.,
-        ofy: 0.,
-        density: 0.,
-        pressure: 0.
+impl Particle {
+    fn new(x: f64, y: f64) -> Particle {
+        Particle {
+            x: x,
+            y: y,
+            vx: 0.,
+            vy: 0.,
+            fx: 0.,
+            fy: 0.,
+            ofx: 0.,
+            ofy: 0.,
+            density: 0.,
+            pressure: 0.
+        }
     }
 }
 
 pub fn create_initial_state() -> Vec<Particle> {
     let particles = vec![
-        create_particle(1.,1.),
-        create_particle(2.,2.),
-        create_particle(3.,3.),
-        create_particle(4.,4.),
-        create_particle(5.,5.),
+        Particle::new(1.,1.),
+        Particle::new(2.,2.),
+        Particle::new(3.,3.),
+        Particle::new(4.,4.),
+        Particle::new(5.,5.),
     ];
     return particles;
 }
