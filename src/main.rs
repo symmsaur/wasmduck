@@ -9,6 +9,8 @@ mod kernels;
 mod math;
 mod sph;
 
+const DT: f64 = 0.001;
+
 struct Canvas {
     pub canvas: CanvasElement,
     pub ctx: CanvasRenderingContext2d,
@@ -33,12 +35,12 @@ fn main() {
         height
     };
     let state = sph::create_initial_state();
-    main_loop(canvas_holder, state, 0.001);
+    main_loop(canvas_holder, state, 0.0);
 }
 
-fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, dt: f64) {
+fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, _dt: f64) {
     let max_density = sph::update_density(&mut state);
-    sph::update_state(&mut state, 1000.0*dt);
+    sph::update_state(&mut state, DT);
     for y in 0..canvas.height {
         for x in 0..canvas.width {
             let density = sph::density(
@@ -56,7 +58,7 @@ fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, dt: f64) {
             canvas.ctx.fill_rect(x as f64, y as f64, 1.0, 1.0);
         }
     }
-    web::window().request_animation_frame(move |new_dt| {
-        main_loop(canvas, state, new_dt);
+    web::window().request_animation_frame(move |dt| {
+        main_loop(canvas, state, dt);
     });
 }
