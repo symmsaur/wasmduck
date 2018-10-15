@@ -9,16 +9,17 @@ const MIN_X: f64 = 0.0;
 const MAX_Y: f64 = 5.0;
 const MIN_Y: f64 = 0.0;
 const START_MIN_X: f64 = 0.0;
-const START_MAX_X: f64 = 2.0;
-const START_MIN_Y: f64 = 2.5;
-const START_MAX_Y: f64 = 4.5;
+const START_MAX_X: f64 = 5.0;
+const START_MIN_Y: f64 = 3.0;
+const START_MAX_Y: f64 = 5.0;
 const GAS_CONST: f64 = 2000.0;
-const H: f64 = 4.0 * (START_MAX_X - START_MIN_X) / N as f64;
+const H: f64 = 2.0 * (START_MAX_X - START_MIN_X) / N as f64;
 const M: f64 = 65.0;
-const MU: f64 = 0.1;
-const DAMPING: f64 = 0.9;
+const MU: f64 = 1.0;
+const DAMPING: f64 = 0.8;
 const REST_DENS: f64 = M * (N*N) as f64 / ((START_MAX_X - START_MIN_X)*(START_MAX_Y - START_MIN_Y));
 const GRAVITY: f64 = 50.0; // Acceleration * Area ?
+const SIGMA: f64 = -10000.0; // Surface tension
 
 #[derive(Clone)]
 pub struct Particle {
@@ -56,7 +57,8 @@ pub struct SPHDebug {
     pub n_neighbours: usize,
     pub frame_time: u128,
     pub h: f64,
-    pub grid_width: u64
+    pub grid_width: u64,
+    pub n : f64
 }
 
 impl SPHDebug {
@@ -66,7 +68,8 @@ impl SPHDebug {
             n_neighbours: 0,
             frame_time: 0,
             h: 0.0,
-            grid_width: 0
+            grid_width: 0,
+            n: 0.0
         }
     }
 }
@@ -126,6 +129,7 @@ pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: S
 
 pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
     let temp_particles = particles.clone();
+    let mut n_max = 0.0;
     let new_forces: Vec<_> = (0..particles.len()).into_iter().map(|i| {
         let mut fx = 0.;
         let mut fy : f64;
@@ -138,14 +142,28 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
                     let particle2 = &temp_particles[j as usize];
                     let rx = particle1.x - particle2.x;
                     let ry = particle1.y - particle2.y;
-                    let p_over_rho_1 = particle1.pressure / math::pow(particle1.density, 2);
-                    let p_over_rho_2 = particle2.pressure / math::pow(particle2.density, 2);
+                    // Gradient and laplacian
                     let (grad_x, grad_y) = kernels::grad_kernel_2d(rx, ry, H);
                     let laplacian = kernels::laplace_kernel_2d(math::length(rx, ry), H);
-                    let advection = -M * particle1.density * (p_over_rho_1 + p_over_rho_2);
-                    let diffusion = -laplacian * MU * M / particle2.density;
-                    fx += grad_x * advection + diffusion * (particle2.vx - particle1.vx);
-                    fy += grad_y * advection + diffusion * (particle2.vy - particle1.vy);
+                    // Pressure forces
+                    let p_over_rho_1 = particle1.pressure / math::pow(particle1.density, 2);
+                    let p_over_rho_2 = particle2.pressure / math::pow(particle2.density, 2);
+                    let f_pressure = -M * particle1.density * (p_over_rho_1 + p_over_rho_2);
+                    // Viscocity forces
+                    let f_viscocity = -laplacian * MU * M / particle2.density;
+                    // Surface tensor
+                    let (nx, ny) = (M / particle2.density * grad_x, M / particle2.density * grad_y);
+                    let n = math::length(nx, ny);
+                    if n > n_max {
+                        n_max = n;
+                    }
+                    if n > 0.01 {
+                        fx -= SIGMA * nx / n * laplacian * M / particle2.density;
+                        fy -= SIGMA * ny / n * laplacian * M / particle2.density;
+                    }
+
+                    fx += grad_x * f_pressure + f_viscocity * (particle2.vx - particle1.vx);
+                    fy += grad_y * f_pressure + f_viscocity * (particle2.vy - particle1.vy);
                 }
             }
         }
@@ -159,7 +177,7 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
         particle.fx = fx;
         particle.fy = fy;
     }
-    debug
+    SPHDebug{ n: n_max, .. debug }
 }
 
 pub fn update_state(particles: &mut Vec<Particle>, dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {

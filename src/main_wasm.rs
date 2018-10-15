@@ -48,7 +48,7 @@ fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, _dt: f64) {
         canvas.ctx.set_fill_style_color(&format!("rgb(0, 0, {})", 255));
         canvas.ctx.fill_rect(particle.x * canvas.width as f64 / 5.0, particle.y * canvas.height as f64 / 5.0, 5.0, 5.0);
     }
-    let n = debug.n_neighbours as u32;
+    let n = debug.n as f64;
     js! {
         console.log(@{n});
     }
