@@ -34,6 +34,9 @@ pub fn laplace_kernel_2d(r: f64, h: f64) -> f64 {
     let inv_h = 1.0 / h;
     let q = r*inv_h;
     let alpha_d = 7.0 / 4.0 / PI * math::pow(inv_h, 2);
+    if q > 2.0 {
+        return 0.0;
+    }
 
     return alpha_d * 5.0*(5.0 * q * q * q - 24.0 * q * q + 36.0 * q - 16.0)/(8.0 * h * h);
 }

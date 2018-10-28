@@ -1,2 +1,5 @@
-[build]
-target = "wasm32-unknown-unknown"
+[alias]
+x86-release = ["build", "--release", "--features=x86"]
+x86-debug = ["build", "--features=x86"]
+x86-test = ["test", "--features=x86"]
+wasm = ["web", "start", "--bin=wasm", "--features=wasm"]

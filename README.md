@@ -1,6 +1,8 @@
 # Minimal deploy
-Build with `cargo web build`
-Serve with `cargo web start`
+Build and serve with `cargo wasm`
+
+# Local run
+To run the executable native (x86) use cargo x86-debug (or x86-release)
 
 # Tests
-Execute tests using `cargo web test`, requires chrome or chromium in `PATH`.
+Execute tests using `cargo x86-test`.
