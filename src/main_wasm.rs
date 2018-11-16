@@ -1,10 +1,16 @@
 #[macro_use]
 extern crate stdweb;
+// #[macro_use]
+// extern crate serde_derive;
+// #[macro_use]
+// extern crate stdweb_derive;
 extern crate rayon;
+extern crate webgl_stdweb;
 
 use stdweb::web::html_element::CanvasElement;
-use stdweb::web::{self, INonElementParentNode, CanvasRenderingContext2d};
+use stdweb::web::{self, INonElementParentNode, TypedArray};
 use stdweb::unstable::TryInto;
+use webgl_stdweb::{WebGLRenderingContext as GL, WebGLBuffer};
 
 mod kernels;
 mod math;
@@ -15,9 +21,10 @@ const DT: f64 = 0.0005;
 
 struct Canvas {
     pub canvas: CanvasElement,
-    pub ctx: CanvasRenderingContext2d,
+    pub ctx: GL,
+    index_buffer: WebGLBuffer,
     width: u32,
-    height: u32
+    height: u32,
 }
 
 fn main() {
@@ -28,13 +35,60 @@ fn main() {
         .unwrap();
     let width = canvas.width();
     let height = canvas.height();
-    let ctx: CanvasRenderingContext2d = canvas
+    let ctx: GL = canvas
         .get_context().unwrap();
+
+    let vertices = TypedArray::<f32>::from(&[0.5, 0.5, 0.0][..]).buffer();
+    let vertex_buffer = ctx.create_buffer().unwrap();
+    ctx.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
+    ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&vertices), GL::STATIC_DRAW);
+
+    let indices = TypedArray::<u16>::from(&[0][..]).buffer();
+    let index_buffer = ctx.create_buffer().unwrap();
+    ctx.bind_buffer(GL::ELEMENT_ARRAY_BUFFER, Some(&index_buffer));
+    ctx.buffer_data_1(GL::ELEMENT_ARRAY_BUFFER, Some(&indices), GL::STATIC_DRAW);
+
+    // Create vertex shader
+    let vert_shader_code = r#"
+        attribute vec3 position;
+
+        void main(void) {
+            gl_Position = vec4(position, 1.);
+            gl_PointSize = 2.;
+        }"#;
+    let vert_shader = ctx.create_shader(GL::VERTEX_SHADER).unwrap();
+    ctx.shader_source(&vert_shader, vert_shader_code);
+    ctx.compile_shader(&vert_shader);
+
+    // Create fragment shader
+    let frag_shader_code = r#"
+        void main(void) {
+            gl_FragColor = vec4(1, 0.5, 0, 1.0);
+        }"#;
+    let frag_shader = ctx.create_shader(GL::FRAGMENT_SHADER).unwrap();
+    ctx.shader_source(&frag_shader, frag_shader_code);
+    ctx.compile_shader(&frag_shader);
+
+    // Create shader program
+    let shady_program = ctx.create_program().unwrap();
+    ctx.attach_shader(&shady_program, &vert_shader);
+    ctx.attach_shader(&shady_program, &frag_shader);
+    ctx.link_program(&shady_program);
+
+    // Associate attributes to shaders
+    ctx.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
+    let pos = ctx.get_attrib_location(&shady_program, "position") as u32;
+    ctx.vertex_attrib_pointer(pos, 3, GL::FLOAT, false, 0, 0);
+    ctx.enable_vertex_attrib_array(pos);
+
+    ctx.use_program(Some(&shady_program));
+
     let canvas_holder = Canvas {
         canvas,
         ctx,
+        index_buffer,
         width,
-        height
+        height,
     };
     let state = sph::create_initial_state();
     main_loop(canvas_holder, state, 0.0);
@@ -42,12 +96,22 @@ fn main() {
 
 fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, _dt: f64) {
     let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
-    canvas.ctx.set_fill_style_color("rgb(0, 0, 0)");
-    canvas.ctx.fill_rect(0.0, 0.0, canvas.width as f64, canvas.height as f64);
-    for particle in &state {
-        canvas.ctx.set_fill_style_color(&format!("rgb(0, 0, {})", 255));
-        canvas.ctx.fill_rect(particle.x * canvas.width as f64 / 5.0, particle.y * canvas.height as f64 / 5.0, 5.0, 5.0);
-    }
+    // canvas.ctx.fill_rect(0.0, 0.0, canvas.width as f64, canvas.height as f64);
+    // for particle in &state {
+    //     canvas.ctx.set_fill_style_color(&format!("rgb(0, 0, {})", 255));
+    //     canvas.ctx.fill_rect(particle.x * canvas.width as f64 / 5.0, particle.y * canvas.height as f64 / 5.0, 5.0, 5.0);
+    // }
+    canvas.ctx.enable(GL::DEPTH_TEST);
+    canvas.ctx.depth_func(GL::LEQUAL);
+    canvas.ctx.clear_color(0.0, 0.0, 0.0, 1.0);
+    canvas.ctx.clear_depth(1.0);
+
+    canvas.ctx.viewport(0, 0, canvas.width as i32, canvas.height as i32);
+    canvas.ctx.clear(GL::COLOR_BUFFER_BIT | GL::DEPTH_BUFFER_BIT);
+
+    canvas.ctx.bind_buffer(GL::ELEMENT_ARRAY_BUFFER, Some(&canvas.index_buffer));
+
+    canvas.ctx.draw_elements(GL::POINTS, 1, GL::UNSIGNED_SHORT, 0);
     let n = debug.n_neighbours as u32;
     js! {
         console.log(@{n});

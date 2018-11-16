@@ -6,13 +6,14 @@ authors = ["Magnus Sandén <thefreid@gmail.com>"]
 [dependencies]
 num-traits = "*"
 stdweb = { version = "*", optional = true }
+webgl_stdweb = { version = "*", optional = true }
 termion = { version = "*", optional = true }
 rayon = { version = "*", optional = true }
 image = { version = "*", optional = true }
 
 [features]
 x86 = ["termion", "rayon", "image"]
-wasm = ["stdweb", "rayon"]
+wasm = ["stdweb", "webgl_stdweb", "rayon"]
 
 [[bin]]
 name = "x86"
