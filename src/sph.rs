@@ -1,13 +1,13 @@
 use kernels;
 use math;
 use grid;
-use rayon::prelude::*;
 
-const N: u32 = 20;
-const MAX_X: f64 = 5.0;
-const MIN_X: f64 = 0.0;
-const MAX_Y: f64 = 5.0;
-const MIN_Y: f64 = 0.0;
+const N: u32 = 30;
+pub const N_PARTICLES: u32 = N * N;
+pub const MAX_X: f64 = 5.0;
+pub const MIN_X: f64 = 0.0;
+pub const MAX_Y: f64 = 5.0;
+pub const MIN_Y: f64 = 0.0;
 const START_MIN_X: f64 = 0.0;
 const START_MAX_X: f64 = 2.0;
 const START_MIN_Y: f64 = 2.5;
