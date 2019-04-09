@@ -62,6 +62,7 @@ pub struct SPHDebug {
     pub grid_time: Duration,
     pub update_density_time: Duration,
     pub calculate_forces_time: Duration,
+    pub average_force: f64,
     pub h: f64,
     pub grid_width: u64
 }
@@ -75,6 +76,7 @@ impl SPHDebug {
             grid_time: Duration::zero(),
             update_density_time: Duration::zero(),
             calculate_forces_time: Duration::zero(),
+            average_force: 0.0,
             h: 0.0,
             grid_width: 0
         }
@@ -175,16 +177,17 @@ pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: S
 pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
     let start = SteadyTime::now();
     let temp_particles = particles.clone();
-    let new_forces: Vec<_> = (0..particles.len()).into_iter().map(|i| {
-        let mut fx = 0.;
-        let mut fy : f64;
-        {
-            let particle1 = &temp_particles[i];
-            fy = GRAVITY * particle1.density;
-            let neighbours = grid.get_neighbours(particle1.x, particle1.y);
-            for j in neighbours {
-                if i as u32 != j {
-                    let particle2 = &temp_particles[j as usize];
+    let mut new_forces = vec![(0.0, 0.0); particles.len()];
+
+    for (particle_indices, neighbours) in grid.particles_and_neighbours() {
+        for particle1_index in particle_indices {
+            let particle1 = &particles[particle1_index as usize];
+            let mut fx = 0.0;
+            let mut fy = GRAVITY*particle1.density;
+
+            for &particle2_index in &neighbours {
+                if particle1_index != particle2_index {
+                    let particle2 = &temp_particles[particle2_index as usize];
                     let rx = particle1.x - particle2.x;
                     let ry = particle1.y - particle2.y;
                     let p_over_rho_1 = particle1.pressure / math::pow(particle1.density, 2);
@@ -197,10 +200,12 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
                     fy += grad_y * advection + diffusion * (particle2.vy - particle1.vy);
                 }
             }
+            if let Some(force) = new_forces.get_mut(particle1_index as usize) {
+                *force = (fx, fy);
+            }
         }
-        (fx, fy)
-    }).collect();
-    for (i, (fx, fy)) in new_forces.into_iter().enumerate()
+    }
+    for (i, &(fx, fy)) in new_forces.iter().enumerate()
     {
         let particle = &mut particles[i];
         particle.ofx = particle.fx;
@@ -211,6 +216,7 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
 
     SPHDebug {
         calculate_forces_time: SteadyTime::now()-start,
+        average_force: new_forces.iter().fold(0.0,  |acc, &(fx, fy)| acc + fx ) / new_forces.len() as f64,
         .. debug 
     }
 }

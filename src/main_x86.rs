@@ -47,7 +47,8 @@ fn render_state(stdout: &mut std::io::Stdout, state: &Vec<sph::Particle>, grid: 
     write!(stdout, "{}Grid time: {}", termion::cursor::Goto(1, height + 4), debug.grid_time);
     write!(stdout, "{}Update density time: {}", termion::cursor::Goto(1, height + 5), debug.update_density_time);
     write!(stdout, "{}Calculate forces time: {}", termion::cursor::Goto(1, height + 6), debug.calculate_forces_time);
-    write!(stdout, "{}H: {}", termion::cursor::Goto(1, height + 7), debug.h);
+    write!(stdout, "{}Average force: {}", termion::cursor::Goto(1, height + 7), debug.average_force);
+    write!(stdout, "{}H: {}", termion::cursor::Goto(1, height + 8), debug.h);
 }
 
 fn render_png(state: &Vec<sph::Particle>, grid: &grid::Grid, debug: sph::SPHDebug, frame: u32, size: u32) {

@@ -3,6 +3,7 @@ pub struct Cell {
     particles: Vec<u32>
 }
 
+#[derive(Clone)]
 pub struct Grid {
     grid: Vec<Cell>,
     grid_width: u64,
@@ -76,6 +77,70 @@ impl Grid {
             neighbours.extend(&self.grid_get(gx - 1, gy + 1).particles);
         }
         return neighbours;
+    }
+
+    pub fn get_neighbours_grid(&self, gx: u64, gy: u64) -> Vec<u32> {
+        let mut neighbours = Vec::new();
+        neighbours.extend(&self.grid_get(gx, gy).particles);
+        if gx + 1 < self.grid_width {
+            neighbours.extend(&self.grid_get(gx + 1, gy).particles);
+        }
+        if gy + 1 < self.grid_height {
+            neighbours.extend(&self.grid_get(gx, gy + 1).particles);
+        }
+        if gx + 1 < self.grid_width && gy + 1 < self.grid_height {
+            neighbours.extend(&self.grid_get(gx + 1, gy + 1).particles);
+        }
+        if gx > 0 {
+            neighbours.extend(&self.grid_get(gx - 1, gy).particles);
+        }
+        if gy > 0 {
+            neighbours.extend(&self.grid_get(gx, gy - 1).particles);
+        }
+        if gx > 0 && gy > 0 {
+            neighbours.extend(&self.grid_get(gx - 1, gy - 1).particles);
+        }
+
+        if gx + 1 < self.grid_width && gy > 0 {
+            neighbours.extend(&self.grid_get(gx + 1, gy - 1).particles);
+        }
+        if gx > 0 && gy + 1 < self.grid_height {
+            neighbours.extend(&self.grid_get(gx - 1, gy + 1).particles);
+        }
+        return neighbours;
+    }
+
+    pub fn particles_and_neighbours(&self) -> ParticleNeighbourIterator {
+        ParticleNeighbourIterator {
+            grid: self.clone(),
+            x: 0,
+            y: 0,
+        }
+    }
+}
+
+pub struct ParticleNeighbourIterator {
+    grid: Grid,
+    x: u64,
+    y: u64,
+}
+
+impl Iterator for ParticleNeighbourIterator {
+    type Item = (Vec<u32>, Vec<u32>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.x < self.grid.grid_width - 1 {
+            self.x += 1;
+        } else if self.y < self.grid.grid_height - 1 {
+            self.y += 1;
+            self.x = 0;
+        } else {
+            return None
+        }
+        let particles = self.grid.grid_get(self.x, self.y).particles.clone();
+        let neighbours = self.grid.get_neighbours_grid(self.x, self.y);
+
+        Some((particles, neighbours))
     }
 }
 
