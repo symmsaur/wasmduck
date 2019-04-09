@@ -1,11 +1,12 @@
-#![feature(duration_as_u128)]
+extern crate time;
 extern crate termion;
 extern crate rayon;
 extern crate image;
+extern crate circular_queue;
 
 use termion::raw::IntoRawMode;
 use std::io::{Write, stdout};
-use std::{thread, time};
+use time::{SteadyTime, Duration};
 use std::env;
 use std::fs;
 
@@ -43,7 +44,10 @@ fn render_state(stdout: &mut std::io::Stdout, state: &Vec<sph::Particle>, grid: 
     write!(stdout, "{}Max density: {}", termion::cursor::Goto(1, height + 1), debug.max_density);
     write!(stdout, "{}Max neighbours: {}", termion::cursor::Goto(1, height + 2), debug.n_neighbours);
     write!(stdout, "{}Frame time: {}", termion::cursor::Goto(1, height + 3), debug.frame_time);
-    write!(stdout, "{}H: {}", termion::cursor::Goto(1, height + 4), debug.h);
+    write!(stdout, "{}Grid time: {}", termion::cursor::Goto(1, height + 4), debug.grid_time);
+    write!(stdout, "{}Update density time: {}", termion::cursor::Goto(1, height + 5), debug.update_density_time);
+    write!(stdout, "{}Calculate forces time: {}", termion::cursor::Goto(1, height + 6), debug.calculate_forces_time);
+    write!(stdout, "{}H: {}", termion::cursor::Goto(1, height + 7), debug.h);
 }
 
 fn render_png(state: &Vec<sph::Particle>, grid: &grid::Grid, debug: sph::SPHDebug, frame: u32, size: u32) {
@@ -87,13 +91,25 @@ fn main() {
     let mut state = sph::create_initial_state();
     let mut frame = 0;
     let mode = handle_args();
-    while true {
-        let t1 = time::Instant::now();
+    let mut update_density_time_queue = circular_queue::CircularQueue::with_capacity(10000);
+    let mut calculate_forces_time_queue = circular_queue::CircularQueue::with_capacity(10000);
+
+    loop {
+        let t1 = SteadyTime::now();
         let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
-        let frame_time = t1.elapsed().as_micros();
+        update_density_time_queue.push(debug.update_density_time);
+        calculate_forces_time_queue.push(debug.calculate_forces_time);
+
+        let frame_time = SteadyTime::now()-t1;
+        let debug = sph::SPHDebug {
+            frame_time: frame_time,
+            update_density_time: update_density_time_queue.iter().fold(Duration::zero(), |accumulate, &x| accumulate+x) / update_density_time_queue.len() as i32,
+            calculate_forces_time: calculate_forces_time_queue.iter().fold(Duration::zero(), |accumulate, &x| accumulate+x) / calculate_forces_time_queue.len() as i32,
+            .. debug};
+
         match mode {
-            Mode::Terminal => render_state(&mut stdout, &state, &grid, sph::SPHDebug { frame_time, .. debug}),
-            Mode::Image { size } => render_png(&state, &grid, sph::SPHDebug { frame_time, .. debug}, frame, size)
+            Mode::Terminal => render_state(&mut stdout, &state, &grid, debug),
+            Mode::Image { size } => render_png(&state, &grid, debug, frame, size)
         }
         frame += 1;
     }

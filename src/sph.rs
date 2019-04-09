@@ -1,6 +1,10 @@
+extern crate time;
+
 use kernels;
 use math;
 use grid;
+use time::{SteadyTime, Duration};
+
 
 const N: u32 = 30;
 pub const N_PARTICLES: u32 = N * N;
@@ -54,7 +58,10 @@ impl Particle {
 pub struct SPHDebug {
     pub max_density: f64,
     pub n_neighbours: usize,
-    pub frame_time: u128,
+    pub frame_time: Duration,
+    pub grid_time: Duration,
+    pub update_density_time: Duration,
+    pub calculate_forces_time: Duration,
     pub h: f64,
     pub grid_width: u64
 }
@@ -64,7 +71,10 @@ impl SPHDebug {
         SPHDebug {
             max_density: 0.0,
             n_neighbours: 0,
-            frame_time: 0,
+            frame_time: Duration::zero(),
+            grid_time: Duration::zero(),
+            update_density_time: Duration::zero(),
+            calculate_forces_time: Duration::zero(),
             h: 0.0,
             grid_width: 0
         }
@@ -91,7 +101,39 @@ pub fn create_initial_state() -> Vec<Particle> {
     return particles;
 }
 
+fn grid_particles(particles: &mut Vec<Particle>, dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug)
+{
+    let start = SteadyTime::now();
+    let mut grid = grid::create_grid(H, MIN_X, MAX_X, MIN_Y, MAX_Y);
+    for (index, particle) in particles.iter_mut().enumerate() {
+        // Velocity Verlet (position update)
+        particle.x =
+            particle.x + particle.vx * dt + 0.5 * (particle.fx / particle.density) * dt * dt;
+        particle.y =
+            particle.y + particle.vy * dt + 0.5 * (particle.fy / particle.density) * dt * dt;
+        if particle.x > MAX_X {
+            particle.x = MAX_X;
+            particle.vx = -DAMPING * particle.vx;
+        }
+        if particle.x < MIN_X {
+            particle.x = MIN_X;
+            particle.vx = -DAMPING * particle.vx;
+        }
+        if particle.y > MAX_Y {
+            particle.y = MAX_Y;
+            particle.vy = -DAMPING * particle.vy;
+        }
+        if particle.y < MIN_Y {
+            particle.y = MIN_Y;
+            particle.vy = -DAMPING * particle.vy;
+        }
+        grid.add_particle(index as u32, particle.x, particle.y);
+    }
+    (grid, SPHDebug{grid_time: SteadyTime::now() - start, .. debug})
+}
+
 pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
+    let start = SteadyTime::now();
     for particle in particles.iter_mut() {
         particle.density = 0.0;
     }
@@ -121,10 +163,17 @@ pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: S
             particle.pressure = GAS_CONST * f64::max(particle.density - REST_DENS, 0.0);
         }
     }
-    return SPHDebug { max_density, n_neighbours, .. debug };
+
+    SPHDebug {
+        max_density: max_density,
+        n_neighbours: n_neighbours,
+        update_density_time: SteadyTime::now()-start,
+        .. debug
+    }
 }
 
 pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
+    let start = SteadyTime::now();
     let temp_particles = particles.clone();
     let new_forces: Vec<_> = (0..particles.len()).into_iter().map(|i| {
         let mut fx = 0.;
@@ -159,44 +208,24 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
         particle.fx = fx;
         particle.fy = fy;
     }
-    debug
+
+    SPHDebug {
+        calculate_forces_time: SteadyTime::now()-start,
+        .. debug 
+    }
 }
 
 pub fn update_state(particles: &mut Vec<Particle>, dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {
-    let mut grid = grid::create_grid(H, MIN_X, MAX_X, MIN_Y, MAX_Y);
-    for (index, particle) in particles.iter_mut().enumerate() {
-        // Velocity Verlet (position update)
-        particle.x =
-            particle.x + particle.vx * dt + 0.5 * (particle.fx / particle.density) * dt * dt;
-        particle.y =
-            particle.y + particle.vy * dt + 0.5 * (particle.fy / particle.density) * dt * dt;
-        if particle.x > MAX_X {
-            particle.x = MAX_X;
-            particle.vx = -DAMPING * particle.vx;
-        }
-        if particle.x < MIN_X {
-            particle.x = MIN_X;
-            particle.vx = -DAMPING * particle.vx;
-        }
-        if particle.y > MAX_Y {
-            particle.y = MAX_Y;
-            particle.vy = -DAMPING * particle.vy;
-        }
-        if particle.y < MIN_Y {
-            particle.y = MIN_Y;
-            particle.vy = -DAMPING * particle.vy;
-        }
-        grid.add_particle(index as u32, particle.x, particle.y);
-    }
-    let debug1 = update_density(particles, &grid, debug);
-    let debug2 = calculate_forces(particles, &grid, debug1);
+    let (grid, debug) = grid_particles(particles, dt, debug);
+    let debug = update_density(particles, &grid, debug);
+    let debug = calculate_forces(particles, &grid, debug);
 
     for particle in particles.iter_mut() {
         // Velocity Verlet (velocity update)
         particle.vx = particle.vx + (particle.ofx + particle.fx) / particle.density / 2.0 * dt;
         particle.vy = particle.vy + (particle.ofy + particle.fy) / particle.density / 2.0 * dt;
     }
-    return (grid, SPHDebug { h: H, .. debug2 });
+    return (grid, SPHDebug { h: H, .. debug });
 }
 
 pub fn density(particles: &Vec<Particle>, grid: &grid::Grid, x: f64, y: f64) -> f64 {
