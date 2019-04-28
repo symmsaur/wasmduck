@@ -64,7 +64,8 @@ pub struct SPHDebug {
     pub calculate_forces_time: Duration,
     pub average_force: f64,
     pub h: f64,
-    pub grid_width: u64
+    pub grid_width: u64,
+    pub frame_rate: u32
 }
 
 impl SPHDebug {
@@ -78,7 +79,8 @@ impl SPHDebug {
             calculate_forces_time: Duration::zero(),
             average_force: 0.0,
             h: 0.0,
-            grid_width: 0
+            grid_width: 0,
+            frame_rate: 0
         }
     }
 }
@@ -176,7 +178,6 @@ pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: S
 
 pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
     let start = SteadyTime::now();
-    let temp_particles = particles.clone();
     let mut new_forces = vec![(0.0, 0.0); particles.len()];
 
     for (particle_indices, neighbours) in grid.particles_and_neighbours() {
@@ -187,7 +188,7 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
 
             for &particle2_index in &neighbours {
                 if particle1_index != particle2_index {
-                    let particle2 = &temp_particles[particle2_index as usize];
+                    let particle2 = &particles[particle2_index as usize];
                     let rx = particle1.x - particle2.x;
                     let ry = particle1.y - particle2.y;
                     let p_over_rho_1 = particle1.pressure / math::pow(particle1.density, 2);
