@@ -84,6 +84,7 @@ fn main() {
 
     let state = sph::create_initial_state();
 
+    ctx.viewport(0, 0, width as i32, height as i32);
     let canvas_holder = Canvas {
         canvas,
         ctx,
@@ -103,13 +104,6 @@ macro_rules! log {
 
 fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
     let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
-    canvas.ctx.enable(GL::DEPTH_TEST);
-    canvas.ctx.depth_func(GL::LEQUAL);
-    canvas.ctx.clear_color(0.0, 0.0, 0.0, 1.0);
-    canvas.ctx.clear_depth(1.0);
-
-    canvas.ctx.viewport(0, 0, canvas.width as i32, canvas.height as i32);
-    canvas.ctx.clear(GL::COLOR_BUFFER_BIT | GL::DEPTH_BUFFER_BIT);
 
     let mut vertices_array = [0.0f32; sph::N_PARTICLES as usize * 2];
     for i in 0..(sph::N_PARTICLES as usize) {
