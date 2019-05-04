@@ -23,7 +23,7 @@ const GRAVITY: f64 = 50.0; // Acceleration * Area ?
 const DUCK_X: f64 = 2.5;
 const DUCK_Y: f64 = 4.5;
 const DUCK_RADIUS: f64 = 0.4;
-const DUCK_MASS: f64 = 100.*M;
+const DUCK_MASS: f64 = 10.*M;
 
 pub struct State {
     pub particles: Vec<Particle>,
@@ -194,12 +194,34 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
 pub fn update_state(state: &mut State,
                     dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {
     let mut grid = grid::create_grid(H, MIN_X, MAX_X, MIN_Y, MAX_Y);
+
+    let duck = &mut state.duck;
+
+    duck.x += duck.vx * dt;
+    duck.y += duck.vy * dt;
+
+    if duck.y > MAX_Y - DUCK_RADIUS {
+        duck.vy = - duck.vy;
+        duck.y = MAX_Y - DUCK_RADIUS;
+    }
+    if duck.x > MAX_X - DUCK_RADIUS {
+        duck.vx = - duck.vx;
+        duck.x = MAX_X - DUCK_RADIUS;
+    }
+    if duck.x < MIN_X + DUCK_RADIUS {
+        duck.vx = - duck.vx;
+        duck.x = MIN_X + DUCK_RADIUS;
+    }
+
+    duck.vy += GRAVITY * dt;
+
     for (index, particle) in state.particles.iter_mut().enumerate() {
         // Velocity Verlet (position update)
         particle.x =
             particle.x + particle.vx * dt + 0.5 * (particle.fx / particle.density) * dt * dt;
         particle.y =
             particle.y + particle.vy * dt + 0.5 * (particle.fy / particle.density) * dt * dt;
+
         if particle.x > MAX_X {
             particle.x = MAX_X;
             particle.vx = -DAMPING * particle.vx;
@@ -216,12 +238,11 @@ pub fn update_state(state: &mut State,
             particle.y = MIN_Y;
             particle.vy = -DAMPING * particle.vy;
         }
-        let duck = &state.duck;
         if math::pow(particle.x - duck.x, 2)
             + math::pow(particle.y - duck.y, 2)
             < math::pow(DUCK_RADIUS, 2) {
-                let distance_x = (particle.x - duck.x);
-                let distance_y = (particle.y - duck.y);
+                let distance_x = particle.x - duck.x;
+                let distance_y = particle.y - duck.y;
                 let distance = f64::sqrt(math::pow(distance_x, 2) + math::pow(distance_y, 2));
                 let normal_x = distance_x / distance;
                 let normal_y = distance_y / distance;
@@ -230,6 +251,9 @@ pub fn update_state(state: &mut State,
                 particle.vy -= (1.0 + DAMPING) * dot * normal_y;
                 particle.x += normal_x * (DUCK_RADIUS - distance);
                 particle.y += normal_y * (DUCK_RADIUS - distance);
+
+                duck.vx += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_x;
+                duck.vy += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_y;
             }
         grid.add_particle(index as u32, particle.x, particle.y);
     }
