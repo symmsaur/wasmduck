@@ -20,6 +20,10 @@ const DAMPING: f64 = 0.9;
 const REST_DENS: f64 = M * (N*N) as f64 / ((START_MAX_X - START_MIN_X)*(START_MAX_Y - START_MIN_Y));
 const GRAVITY: f64 = 50.0; // Acceleration * Area ?
 
+const SPHERE_X: f64 = 2.5;
+const SPHERE_Y: f64 = 4.5;
+const SPHERE_RADIUS: f64 = 0.5;
+
 #[derive(Clone)]
 pub struct Particle {
     pub x: f64,
@@ -186,6 +190,20 @@ pub fn update_state(particles: &mut Vec<Particle>, dt: f64, debug: SPHDebug) -> 
             particle.y = MIN_Y;
             particle.vy = -DAMPING * particle.vy;
         }
+        if math::pow(particle.x - SPHERE_X, 2)
+            + math::pow(particle.y - SPHERE_Y, 2)
+            < math::pow(SPHERE_RADIUS, 2) {
+                let distance_x = (particle.x - SPHERE_X);
+                let distance_y = (particle.y - SPHERE_Y);
+                let distance = math::sqrt(math::pow(distance_x, 2) + math::pow(distance_y, 2));
+                let normal_x = distance_x / distance;
+                let normal_y = distance_y / distance;
+                let dot = normal_x * particle.vx + normal_y * particle.vy;
+                particle.vx -= (1.0 + DAMPING) * dot * normal_x;
+                particle.vy -= (1.0 + DAMPING) * dot * normal_y;
+                particle.x += normal_x * (SPHERE_RADIUS - distance);
+                particle.y += normal_y * (SPHERE_RADIUS - distance);
+            }
         grid.add_particle(index as u32, particle.x, particle.y);
     }
     let debug1 = update_density(particles, &grid, debug);
