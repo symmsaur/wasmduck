@@ -19,12 +19,15 @@ const WIDTH: u16 = 100;
 const HEIGHT: u16 = 30;
 
 #[cfg(target_arch="x86_64")]
-fn render_state(stdout: &mut std::io::Stdout, state: &Vec<sph::Particle>, grid: &grid::Grid, debug: sph::SPHDebug) {
+fn render_state(stdout: &mut std::io::Stdout, state: &sph::State, grid: &grid::Grid, debug: sph::SPHDebug) {
     let width = WIDTH;
     let height = HEIGHT;
     for y in 0..height {
         for x in 0..width {
-            let density = sph::density(&state, &grid, x as f64 * 5.0 / width as f64, y as f64 * 5.0 / height as f64);
+            let density = sph::density(
+                &state.particles, &grid,
+                sph::MIN_X + x as f64 * (sph::MAX_X-sph::MIN_X) / width as f64,
+                sph::MIN_Y + y as f64 * (sph::MAX_Y-sph::MIN_Y) / height as f64);
             let mut norm_density = (9. * density / (debug.max_density)).round() as i32;
             if norm_density > 9 {
                 norm_density = 9;
@@ -46,11 +49,14 @@ fn render_state(stdout: &mut std::io::Stdout, state: &Vec<sph::Particle>, grid: 
     write!(stdout, "{}H: {}", termion::cursor::Goto(1, height + 4), debug.h);
 }
 
-fn render_png(state: &Vec<sph::Particle>, grid: &grid::Grid, debug: sph::SPHDebug, frame: u32, size: u32) {
+fn render_png(state: &sph::State, grid: &grid::Grid, debug: sph::SPHDebug, frame: u32, size: u32) {
     fs::create_dir("output");
     let mut img = image::GrayImage::new(size, size);
     for (x, y, pixel) in img.enumerate_pixels_mut() {
-            let density = sph::density(&state, &grid, x as f64 * 5.0 / size as f64, y as f64 * 5.0 / size as f64);
+            let density = sph::density(
+                &state.particles, &grid,
+                x as f64 * (sph::MAX_X-sph::MIN_X) / size as f64,
+                y as f64 * (sph::MAX_Y-sph::MIN_Y) / size as f64);
             let mut norm_density = (255. * density / (debug.max_density)).round();
             if norm_density > 255.0 {
                 norm_density = 255.0;
