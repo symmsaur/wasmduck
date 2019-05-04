@@ -101,7 +101,7 @@ macro_rules! log {
     })
 }
 
-fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, _dt: f64) {
+fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
     let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
     canvas.ctx.enable(GL::DEPTH_TEST);
     canvas.ctx.depth_func(GL::LEQUAL);
@@ -113,8 +113,8 @@ fn main_loop(canvas: Canvas, mut state: Vec<sph::Particle>, _dt: f64) {
 
     let mut vertices_array = [0.0f32; sph::N_PARTICLES as usize * 2];
     for i in 0..(sph::N_PARTICLES as usize) {
-        let x = state[i].x;
-        let y = state[i].y;
+        let x = state.particles[i].x;
+        let y = state.particles[i].y;
         vertices_array[2 * i] = ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
         vertices_array[2 * i + 1] = (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     }

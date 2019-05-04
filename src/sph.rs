@@ -4,10 +4,10 @@ use grid;
 
 const N: u32 = 30;
 pub const N_PARTICLES: u32 = N * N;
-pub const MAX_X: f64 = 5.0;
-pub const MIN_X: f64 = 0.0;
-pub const MAX_Y: f64 = 5.0;
-pub const MIN_Y: f64 = 0.0;
+pub const MAX_X: f64 = 4.95;
+pub const MIN_X: f64 = 0.05;
+pub const MAX_Y: f64 = 4.95;
+pub const MIN_Y: f64 = 0.05;
 const START_MIN_X: f64 = 0.0;
 const START_MAX_X: f64 = 2.0;
 const START_MIN_Y: f64 = 2.5;
@@ -20,9 +20,33 @@ const DAMPING: f64 = 0.9;
 const REST_DENS: f64 = M * (N*N) as f64 / ((START_MAX_X - START_MIN_X)*(START_MAX_Y - START_MIN_Y));
 const GRAVITY: f64 = 50.0; // Acceleration * Area ?
 
-const SPHERE_X: f64 = 2.5;
-const SPHERE_Y: f64 = 4.5;
-const SPHERE_RADIUS: f64 = 0.5;
+const DUCK_X: f64 = 2.5;
+const DUCK_Y: f64 = 4.5;
+const DUCK_RADIUS: f64 = 0.4;
+const DUCK_MASS: f64 = 100.*M;
+
+pub struct State {
+    pub particles: Vec<Particle>,
+    duck: Duck,
+}
+
+pub struct Duck {
+    x: f64,
+    y: f64,
+    vx: f64,
+    vy: f64,
+}
+
+impl Duck {
+    fn new() -> Duck {
+        Duck {
+            x: DUCK_X,
+            y: DUCK_Y,
+            vx: 0.0,
+            vy: 0.0,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Particle {
@@ -75,7 +99,7 @@ impl SPHDebug {
     }
 }
 
-pub fn create_initial_state() -> Vec<Particle> {
+pub fn create_initial_state() -> State {
     let mut particles = Vec::new();
     let width = START_MAX_X - START_MIN_X;
     let height = START_MAX_Y - START_MIN_Y;
@@ -92,7 +116,8 @@ pub fn create_initial_state() -> Vec<Particle> {
             particles.push(particle);
         }
     }
-    return particles;
+
+    State{particles: particles, duck: Duck::new()}
 }
 
 pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
@@ -166,9 +191,10 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
     debug
 }
 
-pub fn update_state(particles: &mut Vec<Particle>, dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {
+pub fn update_state(state: &mut State,
+                    dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {
     let mut grid = grid::create_grid(H, MIN_X, MAX_X, MIN_Y, MAX_Y);
-    for (index, particle) in particles.iter_mut().enumerate() {
+    for (index, particle) in state.particles.iter_mut().enumerate() {
         // Velocity Verlet (position update)
         particle.x =
             particle.x + particle.vx * dt + 0.5 * (particle.fx / particle.density) * dt * dt;
@@ -190,26 +216,27 @@ pub fn update_state(particles: &mut Vec<Particle>, dt: f64, debug: SPHDebug) -> 
             particle.y = MIN_Y;
             particle.vy = -DAMPING * particle.vy;
         }
-        if math::pow(particle.x - SPHERE_X, 2)
-            + math::pow(particle.y - SPHERE_Y, 2)
-            < math::pow(SPHERE_RADIUS, 2) {
-                let distance_x = (particle.x - SPHERE_X);
-                let distance_y = (particle.y - SPHERE_Y);
-                let distance = math::sqrt(math::pow(distance_x, 2) + math::pow(distance_y, 2));
+        let duck = &state.duck;
+        if math::pow(particle.x - duck.x, 2)
+            + math::pow(particle.y - duck.y, 2)
+            < math::pow(DUCK_RADIUS, 2) {
+                let distance_x = (particle.x - duck.x);
+                let distance_y = (particle.y - duck.y);
+                let distance = f64::sqrt(math::pow(distance_x, 2) + math::pow(distance_y, 2));
                 let normal_x = distance_x / distance;
                 let normal_y = distance_y / distance;
                 let dot = normal_x * particle.vx + normal_y * particle.vy;
                 particle.vx -= (1.0 + DAMPING) * dot * normal_x;
                 particle.vy -= (1.0 + DAMPING) * dot * normal_y;
-                particle.x += normal_x * (SPHERE_RADIUS - distance);
-                particle.y += normal_y * (SPHERE_RADIUS - distance);
+                particle.x += normal_x * (DUCK_RADIUS - distance);
+                particle.y += normal_y * (DUCK_RADIUS - distance);
             }
         grid.add_particle(index as u32, particle.x, particle.y);
     }
-    let debug1 = update_density(particles, &grid, debug);
-    let debug2 = calculate_forces(particles, &grid, debug1);
+    let debug1 = update_density(&mut state.particles, &grid, debug);
+    let debug2 = calculate_forces(&mut state.particles, &grid, debug1);
 
-    for particle in particles.iter_mut() {
+    for particle in state.particles.iter_mut() {
         // Velocity Verlet (velocity update)
         particle.vx = particle.vx + (particle.ofx + particle.fx) / particle.density / 2.0 * dt;
         particle.vy = particle.vy + (particle.ofy + particle.fy) / particle.density / 2.0 * dt;
