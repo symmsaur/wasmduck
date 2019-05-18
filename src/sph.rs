@@ -167,8 +167,8 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
                     let particle2 = &temp_particles[j as usize];
                     let rx = particle1.x - particle2.x;
                     let ry = particle1.y - particle2.y;
-                    let p_over_rho_1 = particle1.pressure / math::pow(particle1.density, 2);
-                    let p_over_rho_2 = particle2.pressure / math::pow(particle2.density, 2);
+                    let p_over_rho_1 = particle1.pressure / particle1.density.powi(2);
+                    let p_over_rho_2 = particle2.pressure / particle2.density.powi(2);
                     let (grad_x, grad_y) = kernels::grad_kernel_2d(rx, ry, H);
                     let laplacian = kernels::laplace_kernel_2d(math::length(rx, ry), H);
                     let advection = -M * particle1.density * (p_over_rho_1 + p_over_rho_2);
@@ -238,12 +238,10 @@ pub fn update_state(state: &mut State,
             particle.y = MIN_Y;
             particle.vy = -DAMPING * particle.vy;
         }
-        if math::pow(particle.x - duck.x, 2)
-            + math::pow(particle.y - duck.y, 2)
-            < math::pow(DUCK_RADIUS, 2) {
+        if (particle.x - duck.x).powi(2) + (particle.y - duck.y).powi(2) < DUCK_RADIUS.powi(2) {
                 let distance_x = particle.x - duck.x;
                 let distance_y = particle.y - duck.y;
-                let distance = f64::sqrt(math::pow(distance_x, 2) + math::pow(distance_y, 2));
+                let distance = f64::sqrt(distance_x.powi(2) + distance_y.powi(2));
                 let normal_x = distance_x / distance;
                 let normal_y = distance_y / distance;
                 let dot = normal_x * particle.vx + normal_y * particle.vy;

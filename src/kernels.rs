@@ -1,43 +1,42 @@
 use math;
 
 use std::f64::consts::PI;
+
+
 /// Wendland quintic kernel
 pub fn kernel_2d(r: f64, h: f64) -> f64 {
-    let inv_h = 1.0 / h;
-    let q = r*inv_h;
+    let q = r / h;
 
     if q > 2.0 {
         return 0.0;
     }
 
-    let alpha_d = 7.0 / 4.0 / PI * math::pow(inv_h, 2);
-    return math::pow(1.0 - 0.5 * q, 4) * (2.0 * q + 1.0) * alpha_d;
+    let alpha_d = 7.0 / 4.0 / PI / h.powi(2);
+    return (1.0 - 0.5 * q).powi(4) * (2.0 * q + 1.0) * alpha_d;
 }
 
 /// Gradient of Wendland quintic kernel
 pub fn grad_kernel_2d(x: f64, y: f64, h: f64) -> (f64, f64) {
     let r = math::length(x, y);
-    let inv_h = 1.0 / h;
-    let q = r*inv_h;
+    let q = r / h;
 
     if q > 2.0 {
         return (0.0, 0.0);
     }
 
-    let alpha_d = 7.0 / 4.0 / PI * math::pow(inv_h, 2);
-    let grad = alpha_d * 5.0 * math::pow(q - 2.0, 3)/(8.0 * h * h);
+    let alpha_d = 7.0 / 4.0 / PI / h.powi(2);
+    let grad = alpha_d * 5.0 * (q - 2.0).powi(3)/(8.0 * h * h);
     return (grad * x, grad * y);
 }
 
 /// Laplacian of Wendland quintic kernel
 pub fn laplace_kernel_2d(r: f64, h: f64) -> f64 {
-    let inv_h = 1.0 / h;
-    let q = r*inv_h;
-    let alpha_d = 7.0 / 4.0 / PI * math::pow(inv_h, 2);
+    let q = r / h;
     if q > 2.0 {
         return 0.0;
     }
 
+    let alpha_d = 7.0 / 4.0 / PI / h.powi(2);
     return alpha_d * 5.0*(5.0 * q * q * q - 24.0 * q * q + 36.0 * q - 16.0)/(8.0 * h * h);
 }
 
