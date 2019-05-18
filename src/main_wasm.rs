@@ -2,15 +2,15 @@
 extern crate stdweb;
 extern crate webgl_stdweb;
 
+use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, TypedArray};
-use stdweb::unstable::TryInto;
-use webgl_stdweb::{WebGLRenderingContext as GL, WebGLBuffer};
+use webgl_stdweb::{WebGLBuffer, WebGLRenderingContext as GL};
 
+mod grid;
 mod kernels;
 mod math;
 mod sph;
-mod grid;
 
 const DT: f64 = 0.0005;
 
@@ -30,8 +30,7 @@ fn main() {
         .unwrap();
     let width = canvas.width();
     let height = canvas.height();
-    let ctx: GL = canvas
-        .get_context().unwrap();
+    let ctx: GL = canvas.get_context().unwrap();
 
     let vertices = TypedArray::<f32>::from(&[0.0; sph::N_PARTICLES as usize * 2][..]).buffer();
     let vertex_buffer = ctx.create_buffer().unwrap();
@@ -96,10 +95,11 @@ fn main() {
 }
 
 macro_rules! log {
-    ($message:expr) =>
-    (js! {
-        console.log(@{$message});
-    })
+    ($message:expr) => {
+        js! {
+            console.log(@{$message});
+        }
+    };
 }
 
 fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
@@ -109,12 +109,18 @@ fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
     for i in 0..(sph::N_PARTICLES as usize) {
         let x = state.particles[i].x;
         let y = state.particles[i].y;
-        vertices_array[2 * i] = ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
-        vertices_array[2 * i + 1] = (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
+        vertices_array[2 * i] =
+            ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
+        vertices_array[2 * i + 1] =
+            (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     }
     let vertices = TypedArray::<f32>::from(&vertices_array[..]).buffer();
-    canvas.ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&vertices), GL::STATIC_DRAW);
-    canvas.ctx.draw_elements(GL::POINTS, sph::N_PARTICLES as i32, GL::UNSIGNED_SHORT, 0);
+    canvas
+        .ctx
+        .buffer_data_1(GL::ARRAY_BUFFER, Some(&vertices), GL::STATIC_DRAW);
+    canvas
+        .ctx
+        .draw_elements(GL::POINTS, sph::N_PARTICLES as i32, GL::UNSIGNED_SHORT, 0);
     web::window().request_animation_frame(move |dt| {
         main_loop(canvas, state, dt);
     });

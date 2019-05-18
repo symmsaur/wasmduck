@@ -1,6 +1,6 @@
 #[derive(Clone)]
 pub struct Cell {
-    particles: Vec<u32>
+    particles: Vec<u32>,
 }
 
 pub struct Grid {
@@ -9,7 +9,7 @@ pub struct Grid {
     grid_height: u64,
     sx: f64,
     sy: f64,
-    h: f64
+    h: f64,
 }
 
 fn world_to_grid(h: f64, sx: f64, sy: f64, x: f64, y: f64) -> (u64, u64) {
@@ -22,12 +22,17 @@ pub fn create_grid(h: f64, sx: f64, ex: f64, sy: f64, ey: f64) -> Grid {
     let (last_gx, last_gy) = world_to_grid(h, sx, sy, ex, ey);
     let (grid_width, grid_height) = (last_gx + 1, last_gy + 1);
     Grid {
-        grid: vec![Cell { particles: Vec::new() }; (grid_width * grid_height) as usize],
+        grid: vec![
+            Cell {
+                particles: Vec::new()
+            };
+            (grid_width * grid_height) as usize
+        ],
         grid_width,
         grid_height,
         sx,
         sy,
-        h: h
+        h: h,
     }
 }
 

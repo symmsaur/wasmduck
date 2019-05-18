@@ -2,7 +2,6 @@ use math;
 
 use std::f64::consts::PI;
 
-
 /// Wendland quintic kernel
 pub fn kernel_2d(r: f64, h: f64) -> f64 {
     let q = r / h;
@@ -25,7 +24,7 @@ pub fn grad_kernel_2d(x: f64, y: f64, h: f64) -> (f64, f64) {
     }
 
     let alpha_d = 7.0 / 4.0 / PI / h.powi(2);
-    let grad = alpha_d * 5.0 * (q - 2.0).powi(3)/(8.0 * h * h);
+    let grad = alpha_d * 5.0 * (q - 2.0).powi(3) / (8.0 * h * h);
     return (grad * x, grad * y);
 }
 
@@ -37,7 +36,7 @@ pub fn laplace_kernel_2d(r: f64, h: f64) -> f64 {
     }
 
     let alpha_d = 7.0 / 4.0 / PI / h.powi(2);
-    return alpha_d * 5.0*(5.0 * q * q * q - 24.0 * q * q + 36.0 * q - 16.0)/(8.0 * h * h);
+    return alpha_d * 5.0 * (5.0 * q * q * q - 24.0 * q * q + 36.0 * q - 16.0) / (8.0 * h * h);
 }
 
 #[cfg(test)]
@@ -47,11 +46,11 @@ mod tests {
     #[test]
     fn test_kernel_2d() {
         let tolerance = 1e-15;
-        assert!((kernel_2d(0.5, 0.5)-0.4177817256162253).abs() < tolerance);
-        assert!((kernel_2d(1.0, 0.5)-0.0000000000000000).abs() < tolerance);
-        assert!((kernel_2d(0.0, 1.0)-0.5570423008216338).abs() < tolerance);
-        assert!((kernel_2d(1.0, 1.0)-0.1044454314040563).abs() < tolerance);
-        assert!((kernel_2d(2.0, 1.0)-0.0000000000000000).abs() < tolerance);
+        assert!((kernel_2d(0.5, 0.5) - 0.4177817256162253).abs() < tolerance);
+        assert!((kernel_2d(1.0, 0.5) - 0.0000000000000000).abs() < tolerance);
+        assert!((kernel_2d(0.0, 1.0) - 0.5570423008216338).abs() < tolerance);
+        assert!((kernel_2d(1.0, 1.0) - 0.1044454314040563).abs() < tolerance);
+        assert!((kernel_2d(2.0, 1.0) - 0.0000000000000000).abs() < tolerance);
     }
 
     #[test]

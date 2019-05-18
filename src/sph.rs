@@ -1,6 +1,6 @@
+use grid;
 use kernels;
 use math;
-use grid;
 
 const N: u32 = 30;
 pub const N_PARTICLES: u32 = N * N;
@@ -17,13 +17,14 @@ const H: f64 = 4.0 * (START_MAX_X - START_MIN_X) / N as f64;
 const M: f64 = 65.0;
 const MU: f64 = 0.1;
 const DAMPING: f64 = 0.9;
-const REST_DENS: f64 = M * (N*N) as f64 / ((START_MAX_X - START_MIN_X)*(START_MAX_Y - START_MIN_Y));
+const REST_DENS: f64 =
+    M * (N * N) as f64 / ((START_MAX_X - START_MIN_X) * (START_MAX_Y - START_MIN_Y));
 const GRAVITY: f64 = 50.0; // Acceleration * Area ?
 
 const DUCK_X: f64 = 2.5;
 const DUCK_Y: f64 = 4.5;
 const DUCK_RADIUS: f64 = 0.4;
-const DUCK_MASS: f64 = 10.*M;
+const DUCK_MASS: f64 = 10. * M;
 
 pub struct State {
     pub particles: Vec<Particle>,
@@ -74,7 +75,7 @@ impl Particle {
             ofx: 0.,
             ofy: 0.,
             density: 1.,
-            pressure: 0.
+            pressure: 0.,
         }
     }
 }
@@ -84,7 +85,7 @@ pub struct SPHDebug {
     pub n_neighbours: usize,
     pub frame_time: u128,
     pub h: f64,
-    pub grid_width: u64
+    pub grid_width: u64,
 }
 
 impl SPHDebug {
@@ -94,7 +95,7 @@ impl SPHDebug {
             n_neighbours: 0,
             frame_time: 0,
             h: 0.0,
-            grid_width: 0
+            grid_width: 0,
         }
     }
 }
@@ -109,18 +110,22 @@ pub fn create_initial_state() -> State {
         for y in 0..N {
             let x = START_MIN_X + (x as f64) * dx;
             let y = START_MIN_Y + (y as f64) * dy;
-            let particle = Particle::new(
-                x,
-                y,
-            );
+            let particle = Particle::new(x, y);
             particles.push(particle);
         }
     }
 
-    State{particles: particles, duck: Duck::new()}
+    State {
+        particles: particles,
+        duck: Duck::new(),
+    }
 }
 
-pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
+pub fn update_density(
+    particles: &mut Vec<Particle>,
+    grid: &grid::Grid,
+    debug: SPHDebug,
+) -> SPHDebug {
     for particle in particles.iter_mut() {
         particle.density = 0.0;
     }
@@ -150,38 +155,48 @@ pub fn update_density(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: S
             particle.pressure = GAS_CONST * f64::max(particle.density - REST_DENS, 0.0);
         }
     }
-    return SPHDebug { max_density, n_neighbours, .. debug };
+    return SPHDebug {
+        max_density,
+        n_neighbours,
+        ..debug
+    };
 }
 
-pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug: SPHDebug) -> SPHDebug {
+pub fn calculate_forces(
+    particles: &mut Vec<Particle>,
+    grid: &grid::Grid,
+    debug: SPHDebug,
+) -> SPHDebug {
     let temp_particles = particles.clone();
-    let new_forces: Vec<_> = (0..particles.len()).into_iter().map(|i| {
-        let mut fx = 0.;
-        let mut fy : f64;
-        {
-            let particle1 = &temp_particles[i];
-            fy = GRAVITY * particle1.density;
-            let neighbours = grid.get_neighbours(particle1.x, particle1.y);
-            for j in neighbours {
-                if i as u32 != j {
-                    let particle2 = &temp_particles[j as usize];
-                    let rx = particle1.x - particle2.x;
-                    let ry = particle1.y - particle2.y;
-                    let p_over_rho_1 = particle1.pressure / particle1.density.powi(2);
-                    let p_over_rho_2 = particle2.pressure / particle2.density.powi(2);
-                    let (grad_x, grad_y) = kernels::grad_kernel_2d(rx, ry, H);
-                    let laplacian = kernels::laplace_kernel_2d(math::length(rx, ry), H);
-                    let advection = -M * particle1.density * (p_over_rho_1 + p_over_rho_2);
-                    let diffusion = -laplacian * MU * M / particle2.density;
-                    fx += grad_x * advection + diffusion * (particle2.vx - particle1.vx);
-                    fy += grad_y * advection + diffusion * (particle2.vy - particle1.vy);
+    let new_forces: Vec<_> = (0..particles.len())
+        .into_iter()
+        .map(|i| {
+            let mut fx = 0.;
+            let mut fy: f64;
+            {
+                let particle1 = &temp_particles[i];
+                fy = GRAVITY * particle1.density;
+                let neighbours = grid.get_neighbours(particle1.x, particle1.y);
+                for j in neighbours {
+                    if i as u32 != j {
+                        let particle2 = &temp_particles[j as usize];
+                        let rx = particle1.x - particle2.x;
+                        let ry = particle1.y - particle2.y;
+                        let p_over_rho_1 = particle1.pressure / particle1.density.powi(2);
+                        let p_over_rho_2 = particle2.pressure / particle2.density.powi(2);
+                        let (grad_x, grad_y) = kernels::grad_kernel_2d(rx, ry, H);
+                        let laplacian = kernels::laplace_kernel_2d(math::length(rx, ry), H);
+                        let advection = -M * particle1.density * (p_over_rho_1 + p_over_rho_2);
+                        let diffusion = -laplacian * MU * M / particle2.density;
+                        fx += grad_x * advection + diffusion * (particle2.vx - particle1.vx);
+                        fy += grad_y * advection + diffusion * (particle2.vy - particle1.vy);
+                    }
                 }
             }
-        }
-        (fx, fy)
-    }).collect();
-    for (i, (fx, fy)) in new_forces.into_iter().enumerate()
-    {
+            (fx, fy)
+        })
+        .collect();
+    for (i, (fx, fy)) in new_forces.into_iter().enumerate() {
         let particle = &mut particles[i];
         particle.ofx = particle.fx;
         particle.ofy = particle.fy;
@@ -191,8 +206,7 @@ pub fn calculate_forces(particles: &mut Vec<Particle>, grid: &grid::Grid, debug:
     debug
 }
 
-pub fn update_state(state: &mut State,
-                    dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {
+pub fn update_state(state: &mut State, dt: f64, debug: SPHDebug) -> (grid::Grid, SPHDebug) {
     let mut grid = grid::create_grid(H, MIN_X, MAX_X, MIN_Y, MAX_Y);
 
     let duck = &mut state.duck;
@@ -201,15 +215,15 @@ pub fn update_state(state: &mut State,
     duck.y += duck.vy * dt;
 
     if duck.y > MAX_Y - DUCK_RADIUS {
-        duck.vy = - duck.vy;
+        duck.vy = -duck.vy;
         duck.y = MAX_Y - DUCK_RADIUS;
     }
     if duck.x > MAX_X - DUCK_RADIUS {
-        duck.vx = - duck.vx;
+        duck.vx = -duck.vx;
         duck.x = MAX_X - DUCK_RADIUS;
     }
     if duck.x < MIN_X + DUCK_RADIUS {
-        duck.vx = - duck.vx;
+        duck.vx = -duck.vx;
         duck.x = MIN_X + DUCK_RADIUS;
     }
 
@@ -239,20 +253,20 @@ pub fn update_state(state: &mut State,
             particle.vy = -DAMPING * particle.vy;
         }
         if (particle.x - duck.x).powi(2) + (particle.y - duck.y).powi(2) < DUCK_RADIUS.powi(2) {
-                let distance_x = particle.x - duck.x;
-                let distance_y = particle.y - duck.y;
-                let distance = f64::sqrt(distance_x.powi(2) + distance_y.powi(2));
-                let normal_x = distance_x / distance;
-                let normal_y = distance_y / distance;
-                let dot = normal_x * particle.vx + normal_y * particle.vy;
-                particle.vx -= (1.0 + DAMPING) * dot * normal_x;
-                particle.vy -= (1.0 + DAMPING) * dot * normal_y;
-                particle.x += normal_x * (DUCK_RADIUS - distance);
-                particle.y += normal_y * (DUCK_RADIUS - distance);
+            let distance_x = particle.x - duck.x;
+            let distance_y = particle.y - duck.y;
+            let distance = f64::sqrt(distance_x.powi(2) + distance_y.powi(2));
+            let normal_x = distance_x / distance;
+            let normal_y = distance_y / distance;
+            let dot = normal_x * particle.vx + normal_y * particle.vy;
+            particle.vx -= (1.0 + DAMPING) * dot * normal_x;
+            particle.vy -= (1.0 + DAMPING) * dot * normal_y;
+            particle.x += normal_x * (DUCK_RADIUS - distance);
+            particle.y += normal_y * (DUCK_RADIUS - distance);
 
-                duck.vx += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_x;
-                duck.vy += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_y;
-            }
+            duck.vx += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_x;
+            duck.vy += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_y;
+        }
         grid.add_particle(index as u32, particle.x, particle.y);
     }
     let debug1 = update_density(&mut state.particles, &grid, debug);
@@ -263,7 +277,7 @@ pub fn update_state(state: &mut State,
         particle.vx = particle.vx + (particle.ofx + particle.fx) / particle.density / 2.0 * dt;
         particle.vy = particle.vy + (particle.ofy + particle.fy) / particle.density / 2.0 * dt;
     }
-    return (grid, SPHDebug { h: H, .. debug2 });
+    return (grid, SPHDebug { h: H, ..debug2 });
 }
 
 pub fn density(particles: &Vec<Particle>, grid: &grid::Grid, x: f64, y: f64) -> f64 {
