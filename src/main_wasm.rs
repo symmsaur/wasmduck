@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate stdweb;
+extern crate nalgebra as na;
+extern crate num_traits;
 extern crate webgl_stdweb;
 
 use stdweb::unstable::TryInto;
@@ -9,7 +11,6 @@ use webgl_stdweb::{WebGLBuffer, WebGLRenderingContext as GL};
 
 mod grid;
 mod kernels;
-mod math;
 mod sph;
 
 const DT: f64 = 0.0005;
@@ -107,8 +108,8 @@ fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
 
     let mut vertices_array = [0.0f32; sph::N_PARTICLES as usize * 2];
     for i in 0..(sph::N_PARTICLES as usize) {
-        let x = state.particles[i].x;
-        let y = state.particles[i].y;
+        let x = state.particles[i].pos[0];
+        let y = state.particles[i].pos[1];
         vertices_array[2 * i] =
             ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
         vertices_array[2 * i + 1] =

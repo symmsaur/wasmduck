@@ -1,5 +1,5 @@
-use math;
-
+use na::Vector2;
+use num_traits::identities::Zero;
 use std::f64::consts::PI;
 
 /// Wendland quintic kernel
@@ -15,17 +15,17 @@ pub fn kernel_2d(r: f64, h: f64) -> f64 {
 }
 
 /// Gradient of Wendland quintic kernel
-pub fn grad_kernel_2d(x: f64, y: f64, h: f64) -> (f64, f64) {
-    let r = math::length(x, y);
+pub fn grad_kernel_2d(v: Vector2<f64>, h: f64) -> Vector2<f64> {
+    let r = v.norm();
     let q = r / h;
 
     if q > 2.0 {
-        return (0.0, 0.0);
+        return Vector2::<f64>::zero();
     }
 
     let alpha_d = 7.0 / 4.0 / PI / h.powi(2);
     let grad = alpha_d * 5.0 * (q - 2.0).powi(3) / (8.0 * h * h);
-    return (grad * x, grad * y);
+    return grad * v;
 }
 
 /// Laplacian of Wendland quintic kernel

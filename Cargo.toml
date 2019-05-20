@@ -5,6 +5,7 @@ authors = ["Magnus Sandén <thefreid@gmail.com>"]
 
 [dependencies]
 num-traits = "*"
+nalgebra = "*"
 stdweb = { version = "*", optional = true }
 webgl_stdweb = { version = "*", optional = true }
 termion = { version = "*", optional = true }

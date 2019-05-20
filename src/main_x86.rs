@@ -11,7 +11,6 @@ use termion::raw::IntoRawMode;
 
 mod grid;
 mod kernels;
-mod math;
 mod sph;
 
 const DT: f64 = 0.0005;

@@ -1,3 +1,5 @@
+use na::Point2;
+
 #[derive(Clone)]
 pub struct Cell {
     particles: Vec<u32>,
@@ -45,13 +47,17 @@ impl Grid {
         &self.grid[self.grid_index((gx, gy))]
     }
 
-    pub fn add_particle(&mut self, index: u32, x: f64, y: f64) {
+    pub fn add_particle(&mut self, index: u32, p: Point2<f64>) {
+        let x = p[0];
+        let y = p[1];
         let (gx, gy) = world_to_grid(self.h, self.sx, self.sy, x, y);
         let grid_index = self.grid_index((gx, gy));
         self.grid[grid_index].particles.push(index);
     }
 
-    pub fn get_neighbours(&self, x: f64, y: f64) -> Vec<u32> {
+    pub fn get_neighbours(&self, p: Point2<f64>) -> Vec<u32> {
+        let x = p[0];
+        let y = p[1];
         let mut neighbours = Vec::new();
         let (gx, gy) = world_to_grid(self.h, self.sx, self.sy, x, y);
         neighbours.extend(&self.grid_get(gx, gy).particles);
@@ -101,13 +107,13 @@ mod tests {
         grid.add_particle(2, -0.2, -0.2);
         grid.add_particle(3, 1.0, 1.0);
         grid.add_particle(4, 1.5, 1.5);
-        let neighbours = grid.get_neighbours(-0.4, -0.4);
+        let neighbours = grid.get_neighbours(Point2::<f64>::new(-0.4, -0.4));
         assert!(neighbours.contains(&1));
         assert!(neighbours.contains(&2));
-        let neighbours2 = grid.get_neighbours(1.0, 1.0);
+        let neighbours = grid.get_neighbours(Point2::<f64>::new(1.0, 1.0));
         assert!(neighbours2.contains(&3));
         assert!(neighbours2.contains(&4));
-        let neighbours3 = grid.get_neighbours(0.0, 0.0);
+        let neighbours = grid.get_neighbours(Point2::<f64>::new(0.0, 0.0));
         assert!(neighbours3.contains(&1));
         assert!(neighbours3.contains(&2));
     }

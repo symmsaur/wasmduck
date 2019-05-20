@@ -1,6 +1,8 @@
+use na::{Point2, Vector2};
+use num_traits::identities::Zero;
+
 use grid;
 use kernels;
-use math;
 
 const N: u32 = 30;
 pub const N_PARTICLES: u32 = N * N;
@@ -32,48 +34,36 @@ pub struct State {
 }
 
 pub struct Duck {
-    x: f64,
-    y: f64,
-    vx: f64,
-    vy: f64,
+    pos: Point2<f64>,
+    v: Vector2<f64>,
 }
 
 impl Duck {
     fn new() -> Duck {
         Duck {
-            x: DUCK_X,
-            y: DUCK_Y,
-            vx: 0.0,
-            vy: 0.0,
+            pos: Point2::<f64>::new(DUCK_X, DUCK_Y),
+            v: Vector2::<f64>::zero(),
         }
     }
 }
 
 #[derive(Clone)]
 pub struct Particle {
-    pub x: f64,
-    pub y: f64,
-    vx: f64,
-    vy: f64,
-    fx: f64,
-    fy: f64,
-    ofx: f64,
-    ofy: f64,
+    pub pos: Point2<f64>,
+    v: Vector2<f64>,
+    f: Vector2<f64>,
+    of: Vector2<f64>,
     density: f64,
     pressure: f64,
 }
 
 impl Particle {
-    fn new(x: f64, y: f64) -> Particle {
+    fn new(p: Point2<f64>) -> Particle {
         Particle {
-            x: x,
-            y: y,
-            vx: 0.,
-            vy: 0.,
-            fx: 0.,
-            fy: 0.,
-            ofx: 0.,
-            ofy: 0.,
+            pos: p,
+            v: Vector2::<f64>::zero(),
+            f: Vector2::<f64>::zero(),
+            of: Vector2::<f64>::zero(),
             density: 1.,
             pressure: 0.,
         }
@@ -110,7 +100,7 @@ pub fn create_initial_state() -> State {
         for y in 0..N {
             let x = START_MIN_X + (x as f64) * dx;
             let y = START_MIN_Y + (y as f64) * dy;
-            let particle = Particle::new(x, y);
+            let particle = Particle::new(Point2::<f64>::new(x, y));
             particles.push(particle);
         }
     }
@@ -136,13 +126,13 @@ pub fn update_density(
         let mut density = 0.;
         {
             let particle1 = &particles[i];
-            let neighbours = grid.get_neighbours(particle1.x, particle1.y);
+            let neighbours = grid.get_neighbours(particle1.pos);
             if neighbours.len() > n_neighbours {
                 n_neighbours = neighbours.len()
             }
             for j in neighbours {
                 let particle2 = &particles[j as usize];
-                let r = math::length(particle1.x - particle2.x, particle1.y - particle2.y);
+                let r = (particle1.pos - particle2.pos).norm();
                 density += M * kernels::kernel_2d(r, H);
             }
         }
@@ -171,37 +161,32 @@ pub fn calculate_forces(
     let new_forces: Vec<_> = (0..particles.len())
         .into_iter()
         .map(|i| {
-            let mut fx = 0.;
-            let mut fy: f64;
+            let mut f = Vector2::<f64>::zero();
             {
                 let particle1 = &temp_particles[i];
-                fy = GRAVITY * particle1.density;
-                let neighbours = grid.get_neighbours(particle1.x, particle1.y);
+                f = Vector2::<f64>::new(0.0, GRAVITY * particle1.density);
+                let neighbours = grid.get_neighbours(particle1.pos);
                 for j in neighbours {
                     if i as u32 != j {
                         let particle2 = &temp_particles[j as usize];
-                        let rx = particle1.x - particle2.x;
-                        let ry = particle1.y - particle2.y;
+                        let r = particle1.pos - particle2.pos;
                         let p_over_rho_1 = particle1.pressure / particle1.density.powi(2);
                         let p_over_rho_2 = particle2.pressure / particle2.density.powi(2);
-                        let (grad_x, grad_y) = kernels::grad_kernel_2d(rx, ry, H);
-                        let laplacian = kernels::laplace_kernel_2d(math::length(rx, ry), H);
+                        let grad = kernels::grad_kernel_2d(r, H);
+                        let laplacian = kernels::laplace_kernel_2d(r.norm(), H);
                         let advection = -M * particle1.density * (p_over_rho_1 + p_over_rho_2);
                         let diffusion = -laplacian * MU * M / particle2.density;
-                        fx += grad_x * advection + diffusion * (particle2.vx - particle1.vx);
-                        fy += grad_y * advection + diffusion * (particle2.vy - particle1.vy);
+                        f += grad * advection + diffusion * (particle2.v - particle1.v);
                     }
                 }
             }
-            (fx, fy)
+            f
         })
         .collect();
-    for (i, (fx, fy)) in new_forces.into_iter().enumerate() {
+    for (i, f) in new_forces.into_iter().enumerate() {
         let particle = &mut particles[i];
-        particle.ofx = particle.fx;
-        particle.ofy = particle.fy;
-        particle.fx = fx;
-        particle.fy = fy;
+        particle.of = particle.f;
+        particle.f = f;
     }
     debug
 }
@@ -211,81 +196,91 @@ pub fn update_state(state: &mut State, dt: f64, debug: SPHDebug) -> (grid::Grid,
 
     let duck = &mut state.duck;
 
-    duck.x += duck.vx * dt;
-    duck.y += duck.vy * dt;
+    duck.pos += duck.v * dt;
 
-    if duck.y > MAX_Y - DUCK_RADIUS {
-        duck.vy = -duck.vy;
-        duck.y = MAX_Y - DUCK_RADIUS;
+    let duck_x = duck.pos[0];
+    let duck_y = duck.pos[1];
+
+    if duck_x < MIN_X + DUCK_RADIUS {
+        let refl = na::geometry::Reflection::new(Vector2::<f64>::x_axis(), MIN_X);
+        refl.reflect(&mut duck.v);
+        duck.pos = Point2::new(MIN_X + DUCK_RADIUS, duck_y);
     }
-    if duck.x > MAX_X - DUCK_RADIUS {
-        duck.vx = -duck.vx;
-        duck.x = MAX_X - DUCK_RADIUS;
+    if duck_x > MAX_X - DUCK_RADIUS {
+        let refl = na::geometry::Reflection::new(Vector2::<f64>::x_axis(), MAX_X);
+        refl.reflect(&mut duck.v);
+        duck.pos = Point2::new(MAX_X - DUCK_RADIUS, duck_y);
     }
-    if duck.x < MIN_X + DUCK_RADIUS {
-        duck.vx = -duck.vx;
-        duck.x = MIN_X + DUCK_RADIUS;
+    if duck_y < MIN_Y + DUCK_RADIUS {
+        let refl = na::geometry::Reflection::new(Vector2::<f64>::y_axis(), MIN_Y);
+        refl.reflect(&mut duck.v);
+        duck.pos = Point2::new(duck_x, MIN_Y + DUCK_RADIUS);
+    }
+    if duck_y > MAX_Y - DUCK_RADIUS {
+        let refl = na::geometry::Reflection::new(Vector2::<f64>::y_axis(), MAX_Y);
+        refl.reflect(&mut duck.v);
+        duck.pos = Point2::new(duck_x, MAX_Y - DUCK_RADIUS);
     }
 
-    duck.vy += GRAVITY * dt;
+    duck.v += Vector2::<f64>::y() * GRAVITY * dt;
 
     for (index, particle) in state.particles.iter_mut().enumerate() {
         // Velocity Verlet (position update)
-        particle.x =
-            particle.x + particle.vx * dt + 0.5 * (particle.fx / particle.density) * dt * dt;
-        particle.y =
-            particle.y + particle.vy * dt + 0.5 * (particle.fy / particle.density) * dt * dt;
+        particle.pos += particle.v * dt + 0.5 * (particle.f / particle.density) * dt * dt;
+        let px = particle.pos[0];
+        let py = particle.pos[1];
 
-        if particle.x > MAX_X {
-            particle.x = MAX_X;
-            particle.vx = -DAMPING * particle.vx;
+        if px > MAX_X {
+            particle.pos = Point2::<f64>::new(MAX_X, py);
+            let refl = na::geometry::Reflection::new(Vector2::<f64>::x_axis(), MAX_X);
+            refl.reflect(&mut particle.v);
+            particle.v *= DAMPING;
         }
-        if particle.x < MIN_X {
-            particle.x = MIN_X;
-            particle.vx = -DAMPING * particle.vx;
+        if px < MIN_X {
+            particle.pos = Point2::<f64>::new(MIN_X, py);
+            let refl = na::geometry::Reflection::new(Vector2::<f64>::x_axis(), MIN_X);
+            refl.reflect(&mut particle.v);
+            particle.v *= DAMPING;
         }
-        if particle.y > MAX_Y {
-            particle.y = MAX_Y;
-            particle.vy = -DAMPING * particle.vy;
+        if py > MAX_Y {
+            particle.pos = Point2::<f64>::new(px, MAX_Y);
+            let refl = na::geometry::Reflection::new(Vector2::<f64>::y_axis(), MAX_Y);
+            refl.reflect(&mut particle.v);
+            particle.v *= DAMPING;
         }
-        if particle.y < MIN_Y {
-            particle.y = MIN_Y;
-            particle.vy = -DAMPING * particle.vy;
+        if py < MIN_Y {
+            particle.pos = Point2::<f64>::new(py, MIN_Y);
+            let refl = na::geometry::Reflection::new(Vector2::<f64>::y_axis(), MIN_Y);
+            refl.reflect(&mut particle.v);
+            particle.v *= DAMPING;
         }
-        if (particle.x - duck.x).powi(2) + (particle.y - duck.y).powi(2) < DUCK_RADIUS.powi(2) {
-            let distance_x = particle.x - duck.x;
-            let distance_y = particle.y - duck.y;
-            let distance = f64::sqrt(distance_x.powi(2) + distance_y.powi(2));
-            let normal_x = distance_x / distance;
-            let normal_y = distance_y / distance;
-            let dot = normal_x * particle.vx + normal_y * particle.vy;
-            particle.vx -= (1.0 + DAMPING) * dot * normal_x;
-            particle.vy -= (1.0 + DAMPING) * dot * normal_y;
-            particle.x += normal_x * (DUCK_RADIUS - distance);
-            particle.y += normal_y * (DUCK_RADIUS - distance);
-
-            duck.vx += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_x;
-            duck.vy += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal_y;
+        if (particle.pos - duck.pos).norm() < DUCK_RADIUS {
+            let displacement = particle.pos - duck.pos;
+            let distance = displacement.norm();
+            let normal = displacement / distance;
+            let dot = na::dot(&normal, &particle.v);
+            particle.v -= (1.0 + DAMPING) * dot * normal;
+            particle.pos += normal * (DUCK_RADIUS - distance);
+            duck.v += M / DUCK_MASS * (1.0 + DAMPING) * dot * normal;
         }
-        grid.add_particle(index as u32, particle.x, particle.y);
+        grid.add_particle(index as u32, particle.pos);
     }
     let debug1 = update_density(&mut state.particles, &grid, debug);
     let debug2 = calculate_forces(&mut state.particles, &grid, debug1);
 
     for particle in state.particles.iter_mut() {
         // Velocity Verlet (velocity update)
-        particle.vx = particle.vx + (particle.ofx + particle.fx) / particle.density / 2.0 * dt;
-        particle.vy = particle.vy + (particle.ofy + particle.fy) / particle.density / 2.0 * dt;
+        particle.v += (particle.of + particle.f) / particle.density / 2.0 * dt;
     }
     return (grid, SPHDebug { h: H, ..debug2 });
 }
 
-pub fn density(particles: &Vec<Particle>, grid: &grid::Grid, x: f64, y: f64) -> f64 {
+pub fn density(particles: &Vec<Particle>, grid: &grid::Grid, p: Point2<f64>) -> f64 {
     let mut density = 0.0;
-    let neighbours = grid.get_neighbours(x, y);
+    let neighbours = grid.get_neighbours(p);
     for i in neighbours {
         let particle = &particles[i as usize];
-        let r = math::length(x - particle.x, y - particle.y);
+        let r = (p - particle.pos).norm();
         density += M * kernels::kernel_2d(r, H);
     }
     return density;
