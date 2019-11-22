@@ -9,7 +9,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
+    - name: Switch to nightly
+      run: rustup install nightly && rustup default nightly
     - name: Run tests
       run: cargo x86-test --verbose
