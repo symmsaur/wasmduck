@@ -5,7 +5,7 @@ extern crate webgl_stdweb;
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, TypedArray};
-use webgl_stdweb::{WebGLBuffer, WebGLRenderingContext as GL};
+use webgl_stdweb::{WebGLRenderingContext as GL};
 
 mod grid;
 mod kernels;
@@ -17,9 +17,6 @@ const DT: f64 = 0.0005;
 struct Canvas {
     pub canvas: CanvasElement,
     pub ctx: GL,
-    index_buffer: WebGLBuffer,
-    width: u32,
-    height: u32,
 }
 
 fn main() {
@@ -87,23 +84,20 @@ fn main() {
     let canvas_holder = Canvas {
         canvas,
         ctx,
-        index_buffer,
-        width,
-        height,
     };
     main_loop(canvas_holder, state, 0.0);
 }
 
-macro_rules! log {
-    ($message:expr) => {
-        js! {
-            console.log(@{$message});
-        }
-    };
-}
+// macro_rules! log {
+//     ($message:expr) => {
+//         js! {
+//             console.log(@{$message});
+//         }
+//     };
+// }
 
 fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
-    let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
+    let (_grid, _debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
 
     let mut vertices_array = [0.0f32; sph::N_PARTICLES as usize * 2];
     for i in 0..(sph::N_PARTICLES as usize) {

@@ -280,6 +280,7 @@ pub fn update_state(state: &mut State, dt: f64, debug: SPHDebug) -> (grid::Grid,
     return (grid, SPHDebug { h: H, ..debug2 });
 }
 
+#[allow(dead_code)]
 pub fn density(particles: &Vec<Particle>, grid: &grid::Grid, x: f64, y: f64) -> f64 {
     let mut density = 0.0;
     let neighbours = grid.get_neighbours(x, y);
