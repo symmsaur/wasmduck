@@ -9,7 +9,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Switch to nightly
-      run: rustup install nightly && rustup default nightly
+    - uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly
+          override: true
     - name: Run tests
       run: cargo x86-test --verbose
