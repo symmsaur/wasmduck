@@ -29,13 +29,13 @@ fn main() {
     let height = canvas.height();
     let ctx: GL = canvas.get_context().unwrap();
 
-    let vertices = TypedArray::<f32>::from(&[0.0; sph::N_PARTICLES as usize * 2][..]).buffer();
+    let vertices = TypedArray::<f32>::from(&[0.0; (sph::N_PARTICLES + 1) as usize * 2][..]).buffer();
     let vertex_buffer = ctx.create_buffer().unwrap();
     ctx.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
     ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&vertices), GL::STATIC_DRAW);
 
-    let mut vinst = [0u16; sph::N_PARTICLES as usize];
-    for i in 0..sph::N_PARTICLES {
+    let mut vinst = [0u16; (sph::N_PARTICLES + 1) as usize];
+    for i in 0..(sph::N_PARTICLES+1) {
         vinst[i as usize] = i as u16;
     }
     let indices = TypedArray::<u16>::from(&vinst[..]).buffer();
@@ -46,10 +46,19 @@ fn main() {
     // Create vertex shader
     let vert_shader_code = r#"
         attribute vec2 position;
+        in int gl_InstanceID;
 
         void main(void) {
             gl_Position = vec4(position, 0., 1.);
-            gl_PointSize = 2.;
+            if(gl_InstanceID == 0)
+            {
+                gl_PointSize = 10.;
+
+            }
+            else
+            {
+                gl_PointSize = 2.;
+            }
         }"#;
     let vert_shader = ctx.create_shader(GL::VERTEX_SHADER).unwrap();
     ctx.shader_source(&vert_shader, vert_shader_code);
@@ -99,22 +108,27 @@ fn main() {
 fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
     let (_grid, _debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
 
-    let mut vertices_array = [0.0f32; sph::N_PARTICLES as usize * 2];
+    let mut vertices_array = [0.0f32; (sph::N_PARTICLES + 1) as usize * 2];
     for i in 0..(sph::N_PARTICLES as usize) {
         let x = state.particles[i].x;
         let y = state.particles[i].y;
-        vertices_array[2 * i] =
+        vertices_array[2+2 * i] =
             ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
-        vertices_array[2 * i + 1] =
+        vertices_array[2+2 * i + 1] =
             (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     }
+
+    vertices_array[0] =
+            ((((state.duck.x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
+    vertices_array[1] =
+            (((-(state.duck.y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     let vertices = TypedArray::<f32>::from(&vertices_array[..]).buffer();
     canvas
         .ctx
         .buffer_data_1(GL::ARRAY_BUFFER, Some(&vertices), GL::STATIC_DRAW);
     canvas
         .ctx
-        .draw_elements(GL::POINTS, sph::N_PARTICLES as i32, GL::UNSIGNED_SHORT, 0);
+        .draw_elements(GL::POINTS, (sph::N_PARTICLES + 1) as i32, GL::UNSIGNED_SHORT, 0);
     web::window().request_animation_frame(move |dt| {
         main_loop(canvas, state, dt);
     });
