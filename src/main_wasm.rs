@@ -29,7 +29,7 @@ fn main() {
     let height = canvas.height();
     let ctx: GL = canvas.get_context().unwrap();
 
-    let vertices = TypedArray::<f32>::from(&[0.0; (sph::N_PARTICLES + 1) as usize * 2][..]).buffer();
+    let vertices = TypedArray::<f32>::from(&[0.0; (sph::N_PARTICLES + 1) as usize * 3][..]).buffer();
     let vertex_buffer = ctx.create_buffer().unwrap();
     ctx.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
     ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&vertices), GL::STATIC_DRAW);
@@ -45,20 +45,19 @@ fn main() {
 
     // Create vertex shader
     let vert_shader_code = r#"
-        attribute vec2 position;
-        in int gl_InstanceID;
+        attribute vec3 position;
 
         void main(void) {
-            gl_Position = vec4(position, 0., 1.);
-            if(gl_InstanceID == 0)
+            gl_Position = vec4(position.xy, 0., 1.);
+            if(position.z > 0.1)
             {
-                gl_PointSize = 10.;
-
+                gl_PointSize = 100.;
             }
             else
             {
                 gl_PointSize = 2.;
             }
+
         }"#;
     let vert_shader = ctx.create_shader(GL::VERTEX_SHADER).unwrap();
     ctx.shader_source(&vert_shader, vert_shader_code);
@@ -82,7 +81,7 @@ fn main() {
     // Associate attributes to shaders
     ctx.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
     let pos = ctx.get_attrib_location(&shady_program, "position") as u32;
-    ctx.vertex_attrib_pointer(pos, 2, GL::FLOAT, false, 0, 0);
+    ctx.vertex_attrib_pointer(pos, 3, GL::FLOAT, false, 0, 0);
     ctx.enable_vertex_attrib_array(pos);
 
     ctx.use_program(Some(&shady_program));
@@ -108,20 +107,22 @@ fn main() {
 fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
     let (_grid, _debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
 
-    let mut vertices_array = [0.0f32; (sph::N_PARTICLES + 1) as usize * 2];
+    let mut vertices_array = [0.0f32; (sph::N_PARTICLES + 1) as usize * 3];
     for i in 0..(sph::N_PARTICLES as usize) {
         let x = state.particles[i].x;
         let y = state.particles[i].y;
-        vertices_array[2+2 * i] =
+        vertices_array[3+3 * i] =
             ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
-        vertices_array[2+2 * i + 1] =
+        vertices_array[3+3 * i + 1] =
             (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
+        vertices_array[3+3 * i + 2] = 0.;
     }
 
     vertices_array[0] =
             ((((state.duck.x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
     vertices_array[1] =
             (((-(state.duck.y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
+    vertices_array[2] = 1.0;
     let vertices = TypedArray::<f32>::from(&vertices_array[..]).buffer();
     canvas
         .ctx
