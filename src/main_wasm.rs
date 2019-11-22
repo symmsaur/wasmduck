@@ -54,7 +54,7 @@ fn main() {
             gl_Position = vec4(position.xy, 0., 1.);
             if(position.z > 0.1)
             {
-                gl_PointSize = 100.;
+                gl_PointSize = 130.;
             }
             else
             {
@@ -69,7 +69,15 @@ fn main() {
     // Create fragment shader
     let frag_shader_code = r#"
         void main(void) {
-            gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            if((gl_PointCoord.x-0.5)*(gl_PointCoord.x-0.5) +
+               (gl_PointCoord.y-0.5)*(gl_PointCoord.y-0.5) > 0.5*0.5)
+            {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            }
+            else
+            {
+                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+            }
         }"#;
     let frag_shader = ctx.create_shader(GL::FRAGMENT_SHADER).unwrap();
     ctx.shader_source(&frag_shader, frag_shader_code);
