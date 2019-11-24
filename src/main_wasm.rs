@@ -5,7 +5,7 @@ extern crate webgl_stdweb;
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, TypedArray};
-use webgl_stdweb::WebGLRenderingContext as GL;
+use webgl_stdweb::{WebGLRenderingContext as GL, ANGLE_instanced_arrays};
 
 mod grid;
 mod kernels;
@@ -84,7 +84,6 @@ fn main() {
 
     let index_buffer = ctx.create_buffer();
     ctx.bind_buffer(GL::ELEMENT_ARRAY_BUFFER, index_buffer.as_ref());
-
     let indices = [1u16, 0u16, 2u16,
                    2u16, 1u16, 3u16];
     let index_data = TypedArray::<u16>::from(&indices[..]).buffer();
@@ -92,20 +91,28 @@ fn main() {
 
     let tex_coord_buffer = ctx.create_buffer();
     ctx.bind_buffer(GL::ARRAY_BUFFER, tex_coord_buffer.as_ref());
-
     let tex_coord_internal = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
     let tex_coord_data = TypedArray::<f32>::from(&tex_coord_internal[..]).buffer();
     ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&tex_coord_data), GL::STATIC_DRAW);
+
+    let offset_buffer = ctx.create_buffer();
+    ctx.bind_buffer(GL::ARRAY_BUFFER, offset_buffer.as_ref());
+    let offset_internal  = [0.0, 0.2,
+                          0.5, 0.0,];
+    let offset_data = TypedArray::<f32>::from(&offset_internal[..]).buffer();
+    ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&offset_data), GL::STATIC_DRAW);
 
     // Create vertex shader
     let vert_shader_code = r#"
             attribute vec3 position;
             attribute vec2 aTextureCoord;
+            attribute vec2 offset;
 
             varying highp vec2 vTextureCoord;
 
             void main(void) {
-                gl_Position = vec4(position, 1.);
+                vec3 pos = position / 4.0 + vec3(offset, 0.0);
+                gl_Position = vec4(pos, 1.0);
                 vTextureCoord = aTextureCoord;
             }"#;
     let vert_shader = ctx.create_shader(GL::VERTEX_SHADER).unwrap();
@@ -146,9 +153,17 @@ fn main() {
     ctx.vertex_attrib_pointer(tex, 2, GL::FLOAT, false, 0, 0);
     ctx.enable_vertex_attrib_array(tex);
 
+    let ext = ctx.get_extension::<ANGLE_instanced_arrays>().unwrap();
+    ctx.bind_buffer(GL::ARRAY_BUFFER, offset_buffer.as_ref());
+    let offs = ctx.get_attrib_location(&shady_program, "offset") as u32;
+    ctx.vertex_attrib_pointer(offs, 2, GL::FLOAT, false, 0, 0);
+    ctx.enable_vertex_attrib_array(offs);
+    ext.vertex_attrib_divisor_angle(offs, 1);
+
     ctx.use_program(Some(&shady_program));
 
-    ctx.draw_elements(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0);
+    // ctx.draw_elements(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0);
+    ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, 2);
 }
 
 // fn main() {
