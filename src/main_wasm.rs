@@ -24,24 +24,19 @@ macro_rules! log {
 const DT: f64 = 0.0005;
 
 struct Canvas {
-    pub canvas: CanvasElement,
-    pub ctx: GL,
-    pub ext: ANGLE_instanced_arrays,
-    pub offset_buffer: std::option::Option<WebGLBuffer>,
+    canvas: CanvasElement,
+    ctx: GL,
+    ext: ANGLE_instanced_arrays,
+    offset_buffer: std::option::Option<WebGLBuffer>,
+    shader: webgl_stdweb::WebGLProgram,
+    water_texture: std::option::Option<webgl_stdweb::WebGLTexture>,
+    duck_texture: std::option::Option<webgl_stdweb::WebGLTexture>,
 }
 
-fn main() {
-    let canvas: CanvasElement = web::document()
-        .get_element_by_id("win")
-        .unwrap()
-        .try_into()
-        .unwrap();
-    let width = canvas.width();
-    let height = canvas.height();
-    let ctx: GL = canvas.get_context().unwrap();
-
-    let water_texture = ctx.create_texture();
-    ctx.bind_texture(GL::TEXTURE_2D, water_texture.as_ref());
+fn make_texture(ctx: &GL, r: u8, g: u8, b: u8) -> std::option::Option<webgl_stdweb::WebGLTexture>
+{
+    let texture = ctx.create_texture();
+    ctx.bind_texture(GL::TEXTURE_2D, texture.as_ref());
 
     let level = 0;
     let internal_format = GL::RGBA as i32;
@@ -52,25 +47,25 @@ fn main() {
     let src_type = GL::UNSIGNED_BYTE;
     let pixel_buf = [
         // top row
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 16u8,
+        r, g, b, 0u8,
+        r, g, b, 0u8,
+        r, g, b, 0u8,
+        r, g, b, 0u8,
         // first middle row
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 64u8,
-        4u8, 4u8, 255u8, 64u8,
-        4u8, 4u8, 255u8, 32u8,
+        r, g, b, 0u8,
+        r, g, b, 64u8,
+        r, g, b, 64u8,
+        r, g, b, 0u8,
         // second middle row
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 64u8,
-        4u8, 4u8, 255u8, 64u8,
-        4u8, 4u8, 255u8, 32u8,
+        r, g, b, 0u8,
+        r, g, b, 64u8,
+        r, g, b, 64u8,
+        r, g, b, 0u8,
         // bottom row
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 16u8,
-        4u8, 4u8, 255u8, 16u8,
+        r, g, b, 0u8,
+        r, g, b, 0u8,
+        r, g, b, 0u8,
+        r, g, b, 0u8,
     ];
     let pixel = TypedArray::<u8>::from(&pixel_buf[..]);
     ctx.tex_image2_d(
@@ -89,14 +84,29 @@ fn main() {
     // ctx.tex_parameteri(GL::TEXTURE_2D, GL::TEXTURE_MAG_FILTER, GL::NEAREST as i32);
 
     ctx.generate_mipmap(GL::TEXTURE_2D);
+    texture
+}
+
+fn main() {
+    let canvas: CanvasElement = web::document()
+        .get_element_by_id("win")
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let width = canvas.width();
+    let height = canvas.height();
+    let ctx: GL = canvas.get_context().unwrap();
+
+    let water_texture = make_texture(&ctx, 4, 4, 255);
+    let duck_texture = make_texture(&ctx, 255, 255, 0);
 
     let quad_buffer = ctx.create_buffer();
     ctx.bind_buffer(GL::ARRAY_BUFFER, quad_buffer.as_ref());
 
-    let quad_vert_internal = [0.0, 0.0, 0.0,
-                              1.0, 0.0, 0.0,
-                              0.0, 1.0, 0.0,
-                              1.0, 1.0, 0.0];
+    let quad_vert_internal = [-0.5, -0.5, 0.0,
+                              0.5, -0.5, 0.0,
+                              -0.5, 0.5, 0.0,
+                              0.5, 0.5, 0.0];
 
     let quad_vert_data = TypedArray::<f32>::from(&quad_vert_internal[..]).buffer();
     ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&quad_vert_data), GL::STATIC_DRAW);
@@ -125,11 +135,12 @@ fn main() {
             attribute vec3 position;
             attribute vec2 aTextureCoord;
             attribute vec2 offset;
+            uniform float size;
 
             varying highp vec2 vTextureCoord;
 
             void main(void) {
-                vec3 pos = position / 8.0 + vec3(offset, 0.0);
+                vec3 pos = position * size + vec3(offset, 0.0);
                 gl_Position = vec4(pos, 1.0);
                 vTextureCoord = aTextureCoord;
             }"#;
@@ -184,12 +195,12 @@ fn main() {
 
     ctx.clear_color(0.0, 0.0, 0.0, 1.0);
 
-    ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, sph::N_PARTICLES as i32);
+    // ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, sph::N_PARTICLES as i32);
 
     let state = sph::create_initial_state();
 
     // ctx.viewport(0, 0, width as i32, height as i32);
-    let canvas_holder = Canvas { canvas, ctx, ext, offset_buffer };
+    let canvas_holder = Canvas { canvas, ctx, ext, offset_buffer, shader: shady_program, water_texture, duck_texture };
     main_loop(canvas_holder, state, 0.0);
 }
 
@@ -206,12 +217,29 @@ fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
             (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     }
     let offset_data = TypedArray::<f32>::from(&offsets[..]).buffer();
+    canvas.ctx.uniform1f(canvas.ctx.get_uniform_location(&canvas.shader, "size").as_ref(), 0.5 * sph::H as f32);
     canvas.ctx.bind_buffer(GL::ARRAY_BUFFER, canvas.offset_buffer.as_ref());
     canvas
         .ctx
         .buffer_data_1(GL::ARRAY_BUFFER, Some(&offset_data), GL::STATIC_DRAW);
     canvas.ctx.clear(GL::COLOR_BUFFER_BIT);
+    canvas.ctx.bind_texture(GL::TEXTURE_2D, canvas.water_texture.as_ref());
     canvas.ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, sph::N_PARTICLES as i32);
+
+    let mut offsets = [0.0; 2];
+    offsets[0] =
+        ((((state.duck.x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
+    offsets[1] =
+        (((-(state.duck.y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
+    let offset_data = TypedArray::<f32>::from(&offsets[..]).buffer();
+    canvas.ctx.uniform1f(canvas.ctx.get_uniform_location(&canvas.shader, "size").as_ref(), 1.0);
+    canvas.ctx.bind_buffer(GL::ARRAY_BUFFER, canvas.offset_buffer.as_ref());
+    canvas
+        .ctx
+        .buffer_data_1(GL::ARRAY_BUFFER, Some(&offset_data), GL::STATIC_DRAW);
+    canvas.ctx.bind_texture(GL::TEXTURE_2D, canvas.duck_texture.as_ref());
+    canvas.ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, 1);
+
     web::window().request_animation_frame(move |dt| {
         main_loop(canvas, state, dt);
     });
