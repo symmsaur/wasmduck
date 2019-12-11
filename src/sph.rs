@@ -8,32 +8,32 @@ pub const MAX_X: f64 = 4.95;
 pub const MIN_X: f64 = 0.05;
 pub const MAX_Y: f64 = 4.95;
 pub const MIN_Y: f64 = 0.05;
-const START_MIN_X: f64 = 0.0;
-const START_MAX_X: f64 = 2.0;
-const START_MIN_Y: f64 = 2.5;
-const START_MAX_Y: f64 = 4.5;
-const GAS_CONST: f64 = 2000.0;
-const H: f64 = 4.0 * (START_MAX_X - START_MIN_X) / N as f64;
+const START_MIN_X: f64 = 0.1;
+const START_MAX_X: f64 = 4.9;
+const START_MIN_Y: f64 = 1.5;
+const START_MAX_Y: f64 = 3.9;
+const GAS_CONST: f64 = 1000.0;
+pub const H: f64 = 4.0 * (START_MAX_X - START_MIN_X) / N as f64;
 const M: f64 = 65.0;
 const MU: f64 = 0.1;
 const DAMPING: f64 = 0.9;
 const REST_DENS: f64 =
     M * (N * N) as f64 / ((START_MAX_X - START_MIN_X) * (START_MAX_Y - START_MIN_Y));
-const GRAVITY: f64 = 50.0; // Acceleration * Area ?
+const GRAVITY: f64 = 100.0; // Acceleration * Area ?
 
 const DUCK_X: f64 = 2.5;
-const DUCK_Y: f64 = 4.5;
+const DUCK_Y: f64 = 1.0;
 const DUCK_RADIUS: f64 = 0.4;
 const DUCK_MASS: f64 = 10. * M;
 
 pub struct State {
     pub particles: Vec<Particle>,
-    duck: Duck,
+    pub duck: Duck,
 }
 
 pub struct Duck {
-    x: f64,
-    y: f64,
+    pub x: f64,
+    pub y: f64,
     vx: f64,
     vy: f64,
 }
@@ -152,7 +152,8 @@ pub fn update_density(
             if density > max_density {
                 max_density = density;
             }
-            particle.pressure = GAS_CONST * f64::max(particle.density - REST_DENS, 0.0);
+            // particle.pressure = GAS_CONST * f64::max(particle.density - REST_DENS, 0.0);
+            particle.pressure = GAS_CONST * (particle.density - REST_DENS);
         }
     }
     return SPHDebug {
@@ -167,19 +168,18 @@ pub fn calculate_forces(
     grid: &grid::Grid,
     debug: SPHDebug,
 ) -> SPHDebug {
-    let temp_particles = particles.clone();
     let new_forces: Vec<_> = (0..particles.len())
         .into_iter()
         .map(|i| {
             let mut fx = 0.;
             let mut fy: f64;
             {
-                let particle1 = &temp_particles[i];
+                let particle1 = &particles[i];
                 fy = GRAVITY * particle1.density;
                 let neighbours = grid.get_neighbours(particle1.x, particle1.y);
                 for j in neighbours {
                     if i as u32 != j {
-                        let particle2 = &temp_particles[j as usize];
+                        let particle2 = &particles[j as usize];
                         let rx = particle1.x - particle2.x;
                         let ry = particle1.y - particle2.y;
                         let p_over_rho_1 = particle1.pressure / particle1.density.powi(2);
