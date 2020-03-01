@@ -28,12 +28,12 @@ const DUCK_MASS: f64 = 10. * M;
 
 pub struct State {
     pub particles: Vec<Particle>,
-    pub duck: Duck,
+    duck: Duck,
 }
 
 pub struct Duck {
-    pub x: f64,
-    pub y: f64,
+    x: f64,
+    y: f64,
     vx: f64,
     vy: f64,
 }
