@@ -4,15 +4,17 @@ extern crate rayon;
 extern crate termion;
 
 use std::env;
-use std::fs;
 use std::io::{stdout, Write};
 use std::{thread, time};
 use termion::raw::IntoRawMode;
+use std::io::prelude::*;
+use std::fs::{self, File};
 
 mod grid;
 mod kernels;
 mod math;
 mod sph;
+mod dto;
 
 const DT: f64 = 0.0005;
 const WIDTH: u16 = 100;
@@ -104,14 +106,25 @@ fn render_png(state: &sph::State, grid: &grid::Grid, debug: sph::SPHDebug, frame
     println!("{}", filename);
 }
 
+fn dump_dto(state: &sph::State, frame: u32) {
+    fs::create_dir("dto");
+    let filename = format!("dto/frame{:04}.dto", frame);
+    let mut file = File::create(filename).unwrap();
+    dto::write_to_io(&state.particles[..], &mut file).unwrap();
+}
+
 enum Mode {
     Terminal,
     Image { size: u32 },
+    DtoDump,
 }
 
 fn handle_args() -> Mode {
     let args: Vec<String> = env::args().collect();
     let mut mode = Mode::Terminal;
+    if args.len() >= 2 && args[1] == "dump" {
+        mode = Mode::DtoDump;
+    }
     if args.len() == 3 {
         if args[1] == "image" {
             mode = Mode::Image {
@@ -128,7 +141,7 @@ fn main() {
     let mut state = sph::create_initial_state();
     let mut frame = 0;
     let mode = handle_args();
-    while true {
+    loop {
         let t1 = time::Instant::now();
         let (grid, debug) = sph::update_state(&mut state, DT, sph::SPHDebug::new());
         let frame_time = t1.elapsed().as_micros();
@@ -151,6 +164,10 @@ fn main() {
                 },
                 frame,
                 size,
+            ),
+            Mode::DtoDump => dump_dto(
+                &state,
+                frame,
             ),
         }
         frame += 1;

@@ -1,4 +1,4 @@
-use math;
+use crate::math;
 
 use std::f64::consts::PI;
 

@@ -1,6 +1,6 @@
-use grid;
-use kernels;
-use math;
+use crate::math;
+use crate::grid;
+use crate::kernels;
 
 const N: u32 = 30;
 pub const N_PARTICLES: u32 = N * N;
@@ -39,7 +39,7 @@ pub struct Duck {
 }
 
 impl Duck {
-    fn new() -> Duck {
+    pub fn new() -> Duck {
         Duck {
             x: DUCK_X,
             y: DUCK_Y,
@@ -49,22 +49,22 @@ impl Duck {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Particle {
     pub x: f64,
     pub y: f64,
-    vx: f64,
-    vy: f64,
-    fx: f64,
-    fy: f64,
-    ofx: f64,
-    ofy: f64,
-    density: f64,
-    pressure: f64,
+    pub vx: f64,
+    pub vy: f64,
+    pub fx: f64,
+    pub fy: f64,
+    pub ofx: f64,
+    pub ofy: f64,
+    pub density: f64,
+    pub pressure: f64,
 }
 
 impl Particle {
-    fn new(x: f64, y: f64) -> Particle {
+    pub fn new(x: f64, y: f64) -> Particle {
         Particle {
             x: x,
             y: y,

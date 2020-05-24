@@ -2,9 +2,12 @@
 name = "wasmduck"
 version = "0.1.0"
 authors = ["Magnus Sandén <thefreid@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 num-traits = "*"
+nom = "5"
+nalgebra = "0.21.0"
 stdweb = { version = "*", optional = true }
 webgl_stdweb = { version = "*", optional = true }
 termion = { version = "*", optional = true }
