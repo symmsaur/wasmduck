@@ -4,17 +4,17 @@ extern crate rayon;
 extern crate termion;
 
 use std::env;
+use std::fs::{self, File};
+use std::io::prelude::*;
 use std::io::{stdout, Write};
 use std::{thread, time};
 use termion::raw::IntoRawMode;
-use std::io::prelude::*;
-use std::fs::{self, File};
 
+mod dto;
 mod grid;
 mod kernels;
 mod math;
 mod sph;
-mod dto;
 
 const DT: f64 = 0.0005;
 const WIDTH: u16 = 100;
@@ -165,10 +165,7 @@ fn main() {
                 frame,
                 size,
             ),
-            Mode::DtoDump => dump_dto(
-                &state,
-                frame,
-            ),
+            Mode::DtoDump => dump_dto(&state, frame),
         }
         frame += 1;
     }

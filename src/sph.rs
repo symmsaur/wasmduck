@@ -1,6 +1,6 @@
-use crate::math;
 use crate::grid;
 use crate::kernels;
+use crate::math;
 
 const N: u32 = 30;
 pub const N_PARTICLES: u32 = N * N;

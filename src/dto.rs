@@ -2,19 +2,9 @@ use crate::sph;
 
 use std::convert::TryFrom;
 
-use nom::{
-    self,
-    IResult,
-    number::complete::le_f64,
-    number::complete::le_u64,
-    multi::count,
-};
+use nom::{self, multi::count, number::complete::le_f64, number::complete::le_u64, IResult};
 
-use nalgebra ::{
-    self as na,
-    VectorN,
-    U3,
-};
+use nalgebra::{self as na, VectorN, U3};
 
 use sph::Particle;
 use std::io::prelude::*;
@@ -23,16 +13,16 @@ use std::io::prelude::*;
 struct ParticleDto {
     position: VectorN<f64, U3>,
     velocity: VectorN<f64, U3>,
-    density:  f64,
+    density: f64,
     pressure: f64,
 }
 
 impl From<Particle> for ParticleDto {
     fn from(particle: Particle) -> Self {
         ParticleDto {
-            position: VectorN::<f64,U3>::new (particle.x, particle.y, 0.0),
-            velocity: VectorN::<f64,U3>::new (particle.vx, particle.vy, 0.0),
-            density:  particle.density,
+            position: VectorN::<f64, U3>::new(particle.x, particle.y, 0.0),
+            velocity: VectorN::<f64, U3>::new(particle.vx, particle.vy, 0.0),
+            density: particle.density,
             pressure: particle.pressure,
         }
     }
@@ -49,7 +39,7 @@ impl From<ParticleDto> for Particle {
             fy: 0.0,
             ofx: 0.0,
             ofy: 0.0,
-            density:  particle.density,
+            density: particle.density,
             pressure: particle.pressure,
         }
     }
@@ -63,14 +53,16 @@ fn to_le_bytes(input: &VectorN<f64, U3>) -> [u8; 24] {
     result
 }
 
-pub fn write_to_io(particles: &[Particle],
-                   buffer: &mut impl std::io::Write) -> std::io::Result<()> {
+pub fn write_to_io(
+    particles: &[Particle],
+    buffer: &mut impl std::io::Write,
+) -> std::io::Result<()> {
     let length = particles.len();
 
     buffer.write(&(length as u64).to_le_bytes())?;
     for particle in particles {
-        let position = VectorN::<f64,U3>::new(particle.x, particle.y, 0.0);
-        let velocity = VectorN::<f64,U3>::new(particle.vx, particle.vy, 0.0);
+        let position = VectorN::<f64, U3>::new(particle.x, particle.y, 0.0);
+        let velocity = VectorN::<f64, U3>::new(particle.vx, particle.vy, 0.0);
         buffer.write(&to_le_bytes(&position))?;
         buffer.write(&to_le_bytes(&velocity))?;
         buffer.write(&particle.density.to_le_bytes())?;
@@ -83,8 +75,10 @@ pub fn write_to_io(particles: &[Particle],
 
 // This is in preparation for trying to reimplement
 // particle using geometric vector types from nalgebra
-fn future_write_to_io(particles: &[ParticleDto],
-               buffer: &mut impl std::io::Write) -> std::io::Result<()> {
+fn future_write_to_io(
+    particles: &[ParticleDto],
+    buffer: &mut impl std::io::Write,
+) -> std::io::Result<()> {
     let length = particles.len();
 
     buffer.write(&(length as u64).to_le_bytes())?;
@@ -102,15 +96,18 @@ fn future_write_to_io(particles: &[ParticleDto],
 fn take_particle(input: &[u8]) -> IResult<&[u8], ParticleDto> {
     let (input, position) = le_vector3(input)?;
     let (input, velocity) = le_vector3(input)?;
-    let (input, density)  = le_f64(input)?;
+    let (input, density) = le_f64(input)?;
     let (input, pressure) = le_f64(input)?;
 
-    Ok((input, ParticleDto {
-        position,
-        velocity,
-        density,
-        pressure
-    }))
+    Ok((
+        input,
+        ParticleDto {
+            position,
+            velocity,
+            density,
+            pressure,
+        },
+    ))
 }
 
 fn take_particles(input: &[u8]) -> IResult<&[u8], Vec<ParticleDto>> {
@@ -156,7 +153,7 @@ mod test {
         let particles = vec![ParticleDto {
             position: na::VectorN::<f64, U3>::new(1.0, 0.0, 0.0),
             velocity: na::VectorN::<f64, U3>::new(1.0, 0.0, 0.0),
-            density:  0.0,
+            density: 0.0,
             pressure: 0.0,
         }];
         let expected = (particles.len() as u64).to_le_bytes();
@@ -173,15 +170,15 @@ mod test {
         let particles = vec![ParticleDto {
             position: na::VectorN::<f64, U3>::new(1.0, 0.0, 0.0),
             velocity: na::VectorN::<f64, U3>::new(1.0, 0.0, 0.0),
-            density:  0.0,
+            density: 0.0,
             pressure: 0.0,
         }];
-    
+
         let mut data = Vec::<u8>::new();
         write_to_io_internal(&particles, &mut data).unwrap();
-    
+
         let (_, result) = take_particles(&data).unwrap();
-    
+
         assert_eq!(result, particles);
     }
 }

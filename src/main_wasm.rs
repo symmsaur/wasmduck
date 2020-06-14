@@ -5,7 +5,7 @@ extern crate webgl_stdweb;
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
 use stdweb::web::{self, INonElementParentNode, TypedArray};
-use webgl_stdweb::{WebGLRenderingContext as GL, ANGLE_instanced_arrays, WebGLBuffer};
+use webgl_stdweb::{ANGLE_instanced_arrays, WebGLBuffer, WebGLRenderingContext as GL};
 
 mod grid;
 mod kernels;
@@ -20,7 +20,6 @@ macro_rules! log {
     };
 }
 
-
 const DT: f64 = 0.0005;
 
 struct Canvas {
@@ -33,8 +32,7 @@ struct Canvas {
     duck_texture: std::option::Option<webgl_stdweb::WebGLTexture>,
 }
 
-fn make_texture(ctx: &GL, r: u8, g: u8, b: u8) -> std::option::Option<webgl_stdweb::WebGLTexture>
-{
+fn make_texture(ctx: &GL, r: u8, g: u8, b: u8) -> std::option::Option<webgl_stdweb::WebGLTexture> {
     let texture = ctx.create_texture();
     ctx.bind_texture(GL::TEXTURE_2D, texture.as_ref());
 
@@ -47,25 +45,10 @@ fn make_texture(ctx: &GL, r: u8, g: u8, b: u8) -> std::option::Option<webgl_stdw
     let src_type = GL::UNSIGNED_BYTE;
     let pixel_buf = [
         // top row
-        r, g, b, 0u8,
-        r, g, b, 0u8,
-        r, g, b, 0u8,
-        r, g, b, 0u8,
-        // first middle row
-        r, g, b, 0u8,
-        r, g, b, 64u8,
-        r, g, b, 64u8,
-        r, g, b, 0u8,
-        // second middle row
-        r, g, b, 0u8,
-        r, g, b, 64u8,
-        r, g, b, 64u8,
-        r, g, b, 0u8,
-        // bottom row
-        r, g, b, 0u8,
-        r, g, b, 0u8,
-        r, g, b, 0u8,
-        r, g, b, 0u8,
+        r, g, b, 0u8, r, g, b, 0u8, r, g, b, 0u8, r, g, b, 0u8, // first middle row
+        r, g, b, 0u8, r, g, b, 64u8, r, g, b, 64u8, r, g, b, 0u8, // second middle row
+        r, g, b, 0u8, r, g, b, 64u8, r, g, b, 64u8, r, g, b, 0u8, // bottom row
+        r, g, b, 0u8, r, g, b, 0u8, r, g, b, 0u8, r, g, b, 0u8,
     ];
     let pixel = TypedArray::<u8>::from(&pixel_buf[..]);
     ctx.tex_image2_d(
@@ -103,18 +86,16 @@ fn main() {
     let quad_buffer = ctx.create_buffer();
     ctx.bind_buffer(GL::ARRAY_BUFFER, quad_buffer.as_ref());
 
-    let quad_vert_internal = [-0.5, -0.5, 0.0,
-                              0.5, -0.5, 0.0,
-                              -0.5, 0.5, 0.0,
-                              0.5, 0.5, 0.0];
+    let quad_vert_internal = [
+        -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, -0.5, 0.5, 0.0, 0.5, 0.5, 0.0,
+    ];
 
     let quad_vert_data = TypedArray::<f32>::from(&quad_vert_internal[..]).buffer();
     ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&quad_vert_data), GL::STATIC_DRAW);
 
     let index_buffer = ctx.create_buffer();
     ctx.bind_buffer(GL::ELEMENT_ARRAY_BUFFER, index_buffer.as_ref());
-    let indices = [1u16, 0u16, 2u16,
-                   2u16, 1u16, 3u16];
+    let indices = [1u16, 0u16, 2u16, 2u16, 1u16, 3u16];
     let index_data = TypedArray::<u16>::from(&indices[..]).buffer();
     ctx.buffer_data_1(GL::ELEMENT_ARRAY_BUFFER, Some(&index_data), GL::STATIC_DRAW);
 
@@ -123,7 +104,6 @@ fn main() {
     let tex_coord_internal = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
     let tex_coord_data = TypedArray::<f32>::from(&tex_coord_internal[..]).buffer();
     ctx.buffer_data_1(GL::ARRAY_BUFFER, Some(&tex_coord_data), GL::STATIC_DRAW);
-
 
     let offset_buffer = ctx.create_buffer();
     ctx.bind_buffer(GL::ARRAY_BUFFER, offset_buffer.as_ref());
@@ -200,7 +180,15 @@ fn main() {
     let state = sph::create_initial_state();
 
     // ctx.viewport(0, 0, width as i32, height as i32);
-    let canvas_holder = Canvas { canvas, ctx, ext, offset_buffer, shader: shady_program, water_texture, duck_texture };
+    let canvas_holder = Canvas {
+        canvas,
+        ctx,
+        ext,
+        offset_buffer,
+        shader: shady_program,
+        water_texture,
+        duck_texture,
+    };
     main_loop(canvas_holder, state, 0.0);
 }
 
@@ -211,34 +199,58 @@ fn main_loop(canvas: Canvas, mut state: sph::State, _dt: f64) {
     for i in 0..(sph::N_PARTICLES as usize) {
         let x = state.particles[i].x;
         let y = state.particles[i].y;
-        offsets[2 * i] =
-            ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
-        offsets[2 * i + 1] =
-            (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
+        offsets[2 * i] = ((((x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
+        offsets[2 * i + 1] = (((-(y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     }
     let offset_data = TypedArray::<f32>::from(&offsets[..]).buffer();
-    canvas.ctx.uniform1f(canvas.ctx.get_uniform_location(&canvas.shader, "size").as_ref(), 0.5 * sph::H as f32);
-    canvas.ctx.bind_buffer(GL::ARRAY_BUFFER, canvas.offset_buffer.as_ref());
+    canvas.ctx.uniform1f(
+        canvas
+            .ctx
+            .get_uniform_location(&canvas.shader, "size")
+            .as_ref(),
+        0.5 * sph::H as f32,
+    );
+    canvas
+        .ctx
+        .bind_buffer(GL::ARRAY_BUFFER, canvas.offset_buffer.as_ref());
     canvas
         .ctx
         .buffer_data_1(GL::ARRAY_BUFFER, Some(&offset_data), GL::STATIC_DRAW);
     canvas.ctx.clear(GL::COLOR_BUFFER_BIT);
-    canvas.ctx.bind_texture(GL::TEXTURE_2D, canvas.water_texture.as_ref());
-    canvas.ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, sph::N_PARTICLES as i32);
+    canvas
+        .ctx
+        .bind_texture(GL::TEXTURE_2D, canvas.water_texture.as_ref());
+    canvas.ext.draw_elements_instanced_angle(
+        GL::TRIANGLES,
+        6,
+        GL::UNSIGNED_SHORT,
+        0,
+        sph::N_PARTICLES as i32,
+    );
 
     let mut offsets = [0.0; 2];
-    offsets[0] =
-        ((((state.duck.x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
-    offsets[1] =
-        (((-(state.duck.y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
+    offsets[0] = ((((state.duck.x - sph::MIN_X) / (sph::MAX_X - sph::MIN_X)) - 0.5) * 2.0) as f32;
+    offsets[1] = (((-(state.duck.y - sph::MIN_Y) / (sph::MAX_Y - sph::MIN_Y)) + 0.5) * 2.0) as f32;
     let offset_data = TypedArray::<f32>::from(&offsets[..]).buffer();
-    canvas.ctx.uniform1f(canvas.ctx.get_uniform_location(&canvas.shader, "size").as_ref(), 1.0);
-    canvas.ctx.bind_buffer(GL::ARRAY_BUFFER, canvas.offset_buffer.as_ref());
+    canvas.ctx.uniform1f(
+        canvas
+            .ctx
+            .get_uniform_location(&canvas.shader, "size")
+            .as_ref(),
+        1.0,
+    );
+    canvas
+        .ctx
+        .bind_buffer(GL::ARRAY_BUFFER, canvas.offset_buffer.as_ref());
     canvas
         .ctx
         .buffer_data_1(GL::ARRAY_BUFFER, Some(&offset_data), GL::STATIC_DRAW);
-    canvas.ctx.bind_texture(GL::TEXTURE_2D, canvas.duck_texture.as_ref());
-    canvas.ext.draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, 1);
+    canvas
+        .ctx
+        .bind_texture(GL::TEXTURE_2D, canvas.duck_texture.as_ref());
+    canvas
+        .ext
+        .draw_elements_instanced_angle(GL::TRIANGLES, 6, GL::UNSIGNED_SHORT, 0, 1);
 
     web::window().request_animation_frame(move |dt| {
         main_loop(canvas, state, dt);
