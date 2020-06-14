@@ -15,11 +15,12 @@ rayon = { version = "*", optional = true }
 image = { version = "*", optional = true }
 actix-web = { version = "2.0", optional = true }
 actix-rt = { version = "1.0", optional = true }
+actix-files = { version = "0.2.2", optional = true }
 
 [features]
 x86 = ["termion", "rayon", "image"]
 wasm = ["stdweb", "webgl_stdweb", "rayon"]
-backend = ["actix-web", "actix-rt"]
+backend = ["actix-web", "actix-rt", "actix-files"]
 
 [[bin]]
 name = "x86"
