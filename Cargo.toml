@@ -13,10 +13,13 @@ webgl_stdweb = { version = "*", optional = true }
 termion = { version = "*", optional = true }
 rayon = { version = "*", optional = true }
 image = { version = "*", optional = true }
+actix-web = { version = "2.0", optional = true }
+actix-rt = { version = "1.0", optional = true }
 
 [features]
 x86 = ["termion", "rayon", "image"]
 wasm = ["stdweb", "webgl_stdweb", "rayon"]
+backend = ["actix-web", "actix-rt"]
 
 [[bin]]
 name = "x86"
@@ -27,3 +30,8 @@ required-features = ["x86"]
 name = "wasm"
 path = "src/main_wasm.rs"
 required-features = ["wasm"]
+
+[[bin]]
+name = "backend"
+path = "src/main_backend.rs"
+required-features = ["backend"]
